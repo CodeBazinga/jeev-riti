@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %} JeevRiti {% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-inner" style="width:100%">
+    <a href="{{ url_for('main.index') }}" class="navbar-brand">
+      <div class="logo-icon">🕉️</div>
+      <div class="brand-text">
+        <span class="brand-name">JeevRiti</span>
+        <span class="brand-tagline">Sacred Ritual Bookings</span>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="{{ url_for('main.index') }}"
+             {% if request.endpoint == 'main.index' %}class="active"{% endif %}>Home</a></li>
+      <li><a href="{{ url_for('main.bookings_list') }}"
+             {% if request.endpoint == 'main.bookings_list' %}class="active"{% endif %}>All Bookings</a></li>
+      <li><a href="{{ url_for('bookings.new_booking') }}"
+             {% if request.endpoint == 'bookings.new_booking' %}class="active"{% endif %}>+ New Booking</a></li>
+      <li><a href="{{ url_for('customers.customer_list') }}"
+             {% if request.endpoint and 'customers' in request.endpoint %}class="active"{% endif %}>Customers</a></li>
+      <li><a href="{{ url_for('admin.pandits_list') }}"
+             {% if request.endpoint and 'admin' in request.endpoint %}class="active"{% endif %}>Pandits</a></li>
+      <li><a href="{{ url_for('rituals.ritual_list') }}"
+             {% if request.endpoint and 'rituals' in request.endpoint %}class="active"{% endif %}>Rituals</a></li>
+      <li><a href="{{ url_for('custom_rituals.list_requests') }}"
+             {% if request.endpoint and 'custom_rituals' in request.endpoint %}class="active"{% endif %}
+             style="font-weight:700;color:var(--gold)">Custom Ritual</a></li>
+             
+      </ul>
+  </div>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container" style="padding-top:16px">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'error' if category == 'error' else category }}">
+          <span>{% if category == 'success' %}✅{% elif category == 'error' %}❌{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+<footer class="footer">
+  <div class="footer-logo">🕉️ Jeevriti</div>
+  <p>Connecting devotees with sacred rituals &amp; learned Pandits</p>
+  <p style="margin-top:8px;font-size:0.75rem;opacity:0.5">© 2026 JeevRiti. All rights reserved.</p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

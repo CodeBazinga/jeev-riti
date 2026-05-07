@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% block title %}{{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>👤 Customer Profile</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('main.index') }}">Home</a><span class="sep">›</span>
+      <a href="{{ url_for('customers.customer_list') }}">Customers</a><span class="sep">›</span>
+      <span>{{ customer.name }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  {% set has_contact = customer.contact_number %}
+  {% set has_address = customer.addresses|length > 0 %}
+
+  <!-- Steps -->
+  <div class="steps-bar" style="margin-bottom:28px">
+    <div class="step step-done"><div class="step-circle">✓</div><div class="step-label">Registered</div></div>
+    <div class="step-line step-line-done"></div>
+    <div class="step {{ 'step-done' if has_address else 'step-active' }}"><div class="step-circle">{{ '✓' if has_address else '2' }}</div><div class="step-label">Address</div></div>
+    <div class="step-line {{ 'step-line-done' if has_address else '' }}"></div>
+    <div class="step {{ 'step-active' if has_address else 'step-inactive' }}"><div class="step-circle">3</div><div class="step-label">Book Ritual</div></div>
+  </div>
+
+  {% if not has_address %}
+  <div style="background:linear-gradient(135deg,#FEF3C7,#FFFBEB);border:1px solid #FDE68A;border-left:4px solid #F59E0B;border-radius:var(--radius-sm);padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:1.3rem">⚠️</span>
+    <div><strong style="color:#92400E">Add at least one address</strong> <span style="color:#B45309;font-size:0.875rem;margin-left:6px">to enable booking.</span></div>
+  </div>
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start">
+
+    <!-- LEFT -->
+    <div>
+
+      <!-- Profile Hero -->
+      <div class="card" style="margin-bottom:24px">
+        <div style="background:linear-gradient(135deg,var(--maroon),#7A1515);padding:24px 28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+          <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--gold),var(--saffron-light));border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.5rem;flex-shrink:0;box-shadow:0 4px 15px rgba(0,0,0,0.3)">{{ customer.name[0].upper() }}</div>
+          <div style="flex:1">
+            <h2 style="font-family:'Playfair Display',serif;color:white;font-size:1.5rem;margin-bottom:4px">{{ customer.name }}</h2>
+            <div style="color:rgba(255,255,255,0.7);font-size:0.875rem">{{ customer.email }}</div>
+            {% if customer.contact_number %}<div style="color:rgba(255,255,255,0.6);font-size:0.8rem;margin-top:2px">📱 {{ customer.contact_number }}</div>{% endif %}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gold btn-sm" onclick="openModal('editContactModal')">✏️ Edit</button>
+            {% if has_address %}
+            <a href="{{ url_for('bookings.new_booking') }}?customer_id={{ customer.id }}"
+               class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);text-decoration:none">+ Book Ritual</a>
+            {% endif %}
+          </div>
+        </div>
+        <!-- KPI strip -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border)">
+          <div class="kpi-cell"><div class="kpi-value">{{ bookings|length }}</div><div class="kpi-label">Total Bookings</div></div>
+          <div class="kpi-cell" style="border-left:1px solid var(--border)"><div class="kpi-value">{{ customer.addresses|length }}</div><div class="kpi-label">Addresses</div></div>
+          <div class="kpi-cell" style="border-left:1px solid var(--border)"><div class="kpi-value">{{ bookings|selectattr('status','equalto','COMPLETED')|list|length }}</div><div class="kpi-label">Completed</div></div>
+        </div>
+      </div>
+
+      <!-- Contact Info -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📱 Contact Information</h3><button class="btn btn-outline btn-sm" onclick="openModal('editContactModal')">✏️ Edit</button></div>
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item"><div class="detail-label">Full Name</div><div class="detail-value">{{ customer.name }}</div></div>
+            <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">{{ customer.email }}</div></div>
+            <div class="detail-item">
+              <div class="detail-label">Contact Number</div>
+              <div class="detail-value">
+                {% if customer.contact_number %}{{ customer.contact_number }}
+                {% else %}<span style="color:#CCC">Not added</span>{% endif %}
+              </div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Date of Birth</div>
+              <div class="detail-value">
+                {% if customer.date_of_birth %}{{ customer.date_of_birth.strftime('%d %b %Y') }}
+                {% else %}<span style="color:#CCC">Not added</span>{% endif %}
+              </div>
+            </div>
+            {% if customer.aggregate_rating %}
+            <div class="detail-item"><div class="detail-label">Rating</div><div class="detail-value"><span style="color:#F59E0B">★</span> {{ "%.1f"|format(customer.aggregate_rating) }}</div></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Addresses -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>📍 Addresses ({{ customer.addresses|length }})</h3>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addAddressModal')">+ Add Address</button>
+        </div>
+        <div class="card-body" style="padding:16px">
+          {% if customer.addresses %}
+          <div style="display:grid;gap:14px">
+            {% for addr in customer.addresses %}
+            <div style="border:2px solid {% if not addr.is_active %}#EEE{% else %}var(--border){% endif %};border-radius:var(--radius-sm);padding:16px 20px;background:{% if not addr.is_active %}#FAFAFA{% else %}white{% endif %}">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div>
+                  <div style="font-weight:700;font-size:0.95rem;color:var(--text-dark);margin-bottom:4px">
+                    {{ addr.reference_name }}
+                    {% if not addr.is_active %}<span style="font-size:0.75rem;color:#999;font-weight:400;margin-left:8px">(Inactive)</span>{% endif %}
+                  </div>
+                  <div style="font-size:0.875rem;color:var(--text-medium);line-height:1.6">
+                    {{ addr.street }}<br>{{ addr.city }}, {{ addr.state }} — {{ addr.zip_code }}<br>{{ addr.country }}
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
+                  <button class="btn btn-outline btn-sm"
+                          onclick="openEditAddrModal({{ addr.id }},'{{ addr.reference_name|e }}','{{ addr.street|e }}','{{ addr.city|e }}','{{ addr.state|e }}','{{ addr.zip_code|e }}','{{ addr.country|e }}')">
+                    Edit
+                  </button>
+                  <form method="POST" action="{{ url_for('customers.delete_address', customer_id=customer.id, address_id=addr.id) }}"
+                        onsubmit="return confirm('Delete this address?')">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:28px">
+            <div class="empty-icon">📍</div>
+            <h3>No Addresses Yet</h3>
+            <p>Add at least one address to enable booking.</p>
+            <button class="btn btn-primary btn-sm" onclick="openModal('addAddressModal')" style="margin-top:12px">+ Add Address</button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Booking History -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📋 Booking History ({{ bookings|length }})</h3>
+          {% if has_address %}
+          <a href="{{ url_for('bookings.new_booking') }}?customer_id={{ customer.id }}" class="btn btn-primary btn-sm">+ New Booking</a>
+          {% endif %}
+        </div>
+        {% if bookings %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ref</th><th>Ritual</th><th>Date</th><th>Amount</th><th>Status</th><th>Payment</th><th></th></tr></thead>
+            <tbody>
+              {% for b in bookings %}
+              <tr>
+                <td><code style="font-size:0.75rem;color:var(--saffron)">{{ b.booking_ref }}</code></td>
+                <td style="font-size:0.85rem">{{ b.ritual_type }}</td>
+                <td style="font-size:0.8rem">{{ b.booking_date.strftime('%d %b %Y') if b.booking_date else '—' }}<br><span style="color:var(--text-light)">{{ b.booking_time.strftime('%I:%M %p') if b.booking_time else '' }}</span></td>
+                <td style="font-weight:700;color:var(--saffron)">{{ b.currency }}{{ "{:,.0f}".format(b.total_amount) }}</td>
+                <td><span class="badge badge-{{ b.status.lower() }}">{{ b.status }}</span></td>
+                <td><span class="badge badge-{{ 'paid' if b.payment_status=='Fully Paid' else 'unpaid' if b.payment_status=='Unpaid' else 'token' }}">{{ b.payment_status }}</span></td>
+                <td><a href="{{ url_for('bookings.view_booking', booking_id=b.id) }}" class="btn btn-outline btn-sm">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:30px"><div class="empty-icon">📋</div><p>No bookings yet.</p></div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div style="position:sticky;top:90px">
+      <div class="card">
+        <div class="card-header"><h3>⚡ Quick Actions</h3></div>
+        <div class="card-body" style="padding:16px;display:grid;gap:10px">
+          <button class="btn btn-primary" style="justify-content:center" onclick="openModal('editContactModal')">✏️ Edit Contact</button>
+          <button class="btn btn-outline" style="justify-content:center" onclick="openModal('addAddressModal')">📍 Add Address</button>
+          {% if has_address %}
+          <a href="{{ url_for('bookings.new_booking') }}?customer_id={{ customer.id }}"
+             class="btn btn-gold" style="justify-content:center;text-decoration:none">🙏 Book a Ritual</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div id="editContactModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><h3>✏️ Edit Contact Info</h3><button class="modal-close" onclick="closeModal('editContactModal')">×</button></div>
+    <form method="POST" action="{{ url_for('customers.update_contact', customer_id=customer.id) }}">
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">Full Name *</label><input type="text" name="name" class="form-control" value="{{ customer.name }}" required></div>
+        <div class="form-group"><label class="form-label">Contact Number</label><input type="tel" name="contact_number" class="form-control" value="{{ customer.contact_number or '' }}" placeholder="+91 XXXXX XXXXX"></div>
+        <div class="form-group"><label class="form-label">Date of Birth</label><input type="date" name="date_of_birth" class="form-control" value="{{ customer.date_of_birth.strftime('%Y-%m-%d') if customer.date_of_birth else '' }}"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editContactModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">💾 Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Address Modal -->
+<div id="addAddressModal" class="modal-overlay">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3>📍 Add Address</h3><button class="modal-close" onclick="closeModal('addAddressModal')">×</button></div>
+    <form method="POST" action="{{ url_for('customers.add_address', customer_id=customer.id) }}">
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">Label *</label><input type="text" name="reference_name" class="form-control" placeholder='e.g. "Home", "Office"' required></div>
+        <div class="form-group"><label class="form-label">Street *</label><textarea name="street" class="form-control" rows="2" required></textarea></div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">City *</label><input type="text" name="city" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">State *</label><input type="text" name="state" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">PIN Code *</label><input type="text" name="zip_code" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">Country</label><input type="text" name="country" class="form-control" value="India"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('addAddressModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">📍 Add</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Address Modal -->
+<div id="editAddrModal" class="modal-overlay">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3>✏️ Edit Address</h3><button class="modal-close" onclick="closeModal('editAddrModal')">×</button></div>
+    <form method="POST" id="editAddrForm">
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">Label *</label><input type="text" name="reference_name" id="ea_ref" class="form-control" required></div>
+        <div class="form-group"><label class="form-label">Street *</label><textarea name="street" id="ea_street" class="form-control" rows="2" required></textarea></div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">City *</label><input type="text" name="city" id="ea_city" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">State *</label><input type="text" name="state" id="ea_state" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">PIN Code *</label><input type="text" name="zip_code" id="ea_zip" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">Country</label><input type="text" name="country" id="ea_country" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editAddrModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">💾 Save</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditAddrModal(id, ref, street, city, state, zip, country) {
+  document.getElementById('ea_ref').value    = ref;
+  document.getElementById('ea_street').value = street;
+  document.getElementById('ea_city').value   = city;
+  document.getElementById('ea_state').value  = state;
+  document.getElementById('ea_zip').value    = zip;
+  document.getElementById('ea_country').value = country;
+  document.getElementById('editAddrForm').action =
+    '/customers/{{ customer.id }}/address/' + id + '/update';
+  openModal('editAddrModal');
+}
+</script>
+{% endblock %}

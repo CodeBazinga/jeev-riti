@@ -1,0 +1,696 @@
+{% extends 'base.html' %}
+{% block title %}{{ pandit.name }} — Pandit Profile{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>🧘 Pandit Profile</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('admin.pandits_list') }}">Pandits</a><span class="sep">›</span><span>{{ pandit.name }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Profile Hero -->
+  <div class="card" style="margin-bottom:24px">
+    <div style="background:linear-gradient(135deg,var(--maroon),#7A1515);padding:28px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;border-radius:var(--radius) var(--radius) 0 0">
+      {% if pandit.profile_photo %}
+      <img src="{{ url_for('admin.serve_photo', photo_id=pandit.profile_photo.id) }}"
+           style="width:84px;height:84px;object-fit:cover;border-radius:50%;border:3px solid var(--gold);flex-shrink:0;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+      {% else %}
+      <div style="width:84px;height:84px;background:linear-gradient(135deg,var(--gold),var(--saffron-light));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.2rem;flex-shrink:0;box-shadow:0 4px 20px rgba(0,0,0,0.3)">🧘</div>
+      {% endif %}
+      <div style="flex:1">
+        <h2 style="font-family:'Playfair Display',serif;color:white;font-size:1.6rem;margin-bottom:4px">{{ pandit.name }}</h2>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+          <span style="color:rgba(255,255,255,0.7);font-size:0.85rem">📱 {{ pandit.mobile }}</span>
+          {% if pandit.current_address %}<span style="color:rgba(255,255,255,0.7);font-size:0.85rem">📍 {{ pandit.current_address.city }}</span>{% endif %}
+          {% if pandit.experience_yrs %}<span style="color:rgba(255,255,255,0.7);font-size:0.85rem">🕰️ {{ pandit.experience_yrs }} yrs</span>{% endif %}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <span class="badge badge-vstatus-{{ pandit.verification_status.lower() }}" style="font-size:0.8rem;padding:5px 14px">{{ '✅' if pandit.verification_status=='VERIFIED' else '⏳' if pandit.verification_status=='PENDING' else '❌' }} {{ pandit.verification_status }}</span>
+          <span class="badge badge-astatus-{{ pandit.account_status.lower() }}" style="font-size:0.8rem;padding:5px 14px">{{ pandit.account_status }}</span>
+          <span class="badge {% if pandit.is_available %}badge-completed{% else %}badge-cancelled{% endif %}" style="font-size:0.8rem;padding:5px 14px">{{ '🟢 Available' if pandit.is_available else '🔴 Unavailable' }}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        {% if pandit.verification_status != 'VERIFIED' %}
+        <button class="btn btn-gold btn-sm" onclick="openModal('approveModal')">✅ Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="openModal('rejectModal')">❌ Reject</button>
+        {% endif %}
+        {% if pandit.account_status == 'Active' %}
+        <button class="btn btn-sm" style="background:#F59E0B;color:white" onclick="openModal('suspendModal')">⛔ Suspend</button>
+        {% else %}
+        <form method="POST" action="{{ url_for('admin.set_pandit_status', pandit_id=pandit.id) }}"><input type="hidden" name="action" value="activate"><button type="submit" class="btn btn-success btn-sm">▶ Activate</button></form>
+        {% endif %}
+      </div>
+    </div>
+    <!-- KPI strip -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border)">
+      <div class="kpi-cell"><div class="kpi-value"><span style="color:#F59E0B">★</span> {{ "%.1f"|format(pandit.rating) }}</div><div class="kpi-label">Rating</div></div>
+      <div class="kpi-cell" style="border-left:1px solid var(--border)"><div class="kpi-value">{{ pandit.total_bookings_completed }}</div><div class="kpi-label">Completed</div></div>
+      <div class="kpi-cell" style="border-left:1px solid var(--border)"><div class="kpi-value" style="color:var(--saffron)">₹{{ "{:,.0f}".format(pandit.total_earnings) }}</div><div class="kpi-label">Earnings</div></div>
+      <div class="kpi-cell" style="border-left:1px solid var(--border)"><div class="kpi-value" style="color:{% if pandit.pending_payout>0 %}#E67E22{% else %}#27AE60{% endif %}">₹{{ "{:,.0f}".format(pandit.pending_payout) }}</div><div class="kpi-label">Pending Payout</div></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start">
+
+    <!-- LEFT -->
+    <div>
+
+      <!-- Personal Details -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>👤 Personal Details</h3><button class="btn btn-outline btn-sm" onclick="openModal('editModal')">✏️ Edit</button></div>
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item"><div class="detail-label">Full Name</div><div class="detail-value">{{ pandit.name }}</div></div>
+            <div class="detail-item"><div class="detail-label">Mobile</div><div class="detail-value">{{ pandit.mobile }}</div></div>
+            <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">{{ pandit.email or '—' }}</div></div>
+            <div class="detail-item"><div class="detail-label">Experience</div><div class="detail-value">{{ pandit.experience_yrs or 0 }} years</div></div>
+            <div class="detail-item"><div class="detail-label">Languages</div><div class="detail-value">{{ pandit.languages or '—' }}</div></div>
+          </div>
+          {% if pandit.rejection_reason %}
+          <div style="background:#FEE2E2;border:1px solid #FECACA;border-radius:8px;padding:14px;margin-top:16px">
+            <div class="detail-label" style="color:#991B1B;margin-bottom:4px">Rejection Reason</div>
+            <div style="color:#991B1B;font-size:0.875rem">{{ pandit.rejection_reason }}</div>
+          </div>
+          {% endif %}
+          {% if pandit.suspension_reason %}
+          <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:14px;margin-top:16px">
+            <div class="detail-label" style="color:#92400E;margin-bottom:4px">Suspension Reason</div>
+            <div style="color:#92400E;font-size:0.875rem">{{ pandit.suspension_reason }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ══ PUJA DETAILS (per-ritual pricing) ══ -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>🕉️ Ritual Puja Details ({{ pandit.puja_details|length }})</h3>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addPujaDetailModal')">+ Add Ritual Detail</button>
+        </div>
+        <div class="card-body" style="padding:16px">
+          {% if pandit.puja_details %}
+          <div style="display:grid;gap:14px">
+            {% for pd in pandit.puja_details %}
+            <div style="border:2px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:white">
+              <!-- Header -->
+              <div style="background:linear-gradient(135deg,var(--maroon),#7A1515);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div>
+                  <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:white">{{ pd.ritual.title }}</div>
+                  <div style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-top:2px">
+                    Variant {{ pd.variant }}{% if pd.variant_detail and pd.variant_detail.get('name') %} — {{ pd.variant_detail.name }}{% endif %}
+                  </div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:1.3rem;font-weight:800;color:var(--gold-light)">{{ pd.currency }}{{ "{:,.0f}".format(pd.total_fees) }}</div>
+                  <div style="font-size:0.7rem;color:rgba(255,255,255,0.6)">Total Fees</div>
+                </div>
+              </div>
+              <!-- Body -->
+              <div style="padding:14px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+                <div class="detail-item"><div class="detail-label">Min. Pandits</div><div class="detail-value">{{ pd.min_num_pandits }}</div></div>
+                <div class="detail-item"><div class="detail-label">Duration</div><div class="detail-value">{{ pd.duration or '—' }}</div></div>
+                {% if pd.variant_detail %}
+                <div class="detail-item" style="grid-column:1/-1">
+                  <div class="detail-label">Variant Detail (ritual_metadata)</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+                    {% for k, v in pd.variant_detail.items() %}
+                    <span style="background:white;border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:0.78rem;color:var(--text-medium)"><strong>{{ k }}</strong>: {{ v }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
+                {% if pd.fees_breakup %}
+                <div style="grid-column:1/-1">
+                  <div class="detail-label" style="margin-bottom:6px">Fees Breakup</div>
+                  <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    {% for key in ['dakshina','chadhava','transportation'] %}
+                    {% set fb_item = pd.fees_breakup.get(key) %}
+                    {% if fb_item %}
+                    <span style="background:var(--cream);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:0.78rem;color:var(--text-medium)">{{ key | title }}: ₹{{ "{:,.0f}".format(fb_item.get('amount', 0)) }} ({{ fb_item.get('currency','INR') }})</span>
+                    {% endif %}
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+              <!-- Actions -->
+              <div style="padding:10px 20px;border-top:1px solid var(--border);background:var(--cream);display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm"
+                        onclick="openEditPujaModal(
+                          {{ pd.id }},
+                          {{ pd.ritual_id }},
+                          {{ pd.variant }},
+                          {{ pd.min_num_pandits }},
+                          '{{ pd.duration|default('')|e }}',
+                          {{ pd.total_fees }},
+                          {{ (pd.fees_breakup.dakshina.amount if pd.fees_breakup and pd.fees_breakup.dakshina else 0) }},
+                          {{ (pd.fees_breakup.chadhava.amount if pd.fees_breakup and pd.fees_breakup.chadhava else 0) }},
+                          {{ (pd.fees_breakup.transportation.amount if pd.fees_breakup and pd.fees_breakup.transportation else 0) }},
+                          {{ pd.ritual_detail_id if pd.ritual_detail_id is defined else 'null' }}
+                        )">✏️ Edit</button>
+                <form method="POST" action="{{ url_for('admin.delete_puja_detail', pandit_id=pandit.id, detail_id=pd.id) }}"
+                      onsubmit="return confirm('Delete this puja detail?')">
+                  <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:28px">
+            <div class="empty-icon">🕉️</div>
+            <h3>No Ritual Details Yet</h3>
+            <p>Add per-ritual pricing and details for this Pandit.</p>
+            <button class="btn btn-primary btn-sm" onclick="openModal('addPujaDetailModal')" style="margin-top:12px">+ Add Ritual Detail</button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Addresses -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📍 Addresses ({{ pandit.addresses|length }})</h3><button class="btn btn-primary btn-sm" onclick="openModal('addAddressModal')">+ Add</button></div>
+        <div class="card-body" style="padding:16px">
+          {% if pandit.addresses %}
+          <div style="display:grid;gap:12px">
+            {% for addr in pandit.addresses %}
+            <div style="border:2px solid {% if addr.address_type=='CURRENT' %}var(--saffron){% elif addr.address_type=='PERMANENT' %}var(--gold){% else %}var(--border){% endif %};border-radius:var(--radius-sm);padding:16px 20px;position:relative">
+              <div style="position:absolute;top:-10px;left:16px"><span style="background:{% if addr.address_type=='CURRENT' %}var(--saffron){% elif addr.address_type=='PERMANENT' %}var(--gold){% else %}#6B7280{% endif %};color:white;font-size:0.68rem;font-weight:700;padding:2px 10px;border-radius:20px">{{ addr.address_type }}</span></div>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:4px">
+                <div>
+                  {% if addr.reference_name %}<div style="font-weight:700;font-size:0.9rem;margin-bottom:4px">{{ addr.reference_name }}</div>{% endif %}
+                  <div style="font-size:0.875rem;color:var(--text-medium);line-height:1.6">{{ addr.street }}<br>{{ addr.city }}{% if addr.state %}, {{ addr.state }}{% endif %}{% if addr.zip_code %} — {{ addr.zip_code }}{% endif %}<br>{{ addr.country }}</div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                  <button class="btn btn-outline btn-sm" onclick="openEditAddressModal({{ addr.id }},'{{ addr.address_type }}','{{ addr.reference_name|e }}','{{ addr.street|replace('\n',' ')|e }}','{{ addr.city|e }}','{{ addr.state|e }}','{{ addr.zip_code|e }}','{{ addr.country|e }}')">✏️ Edit</button>
+                  <form method="POST" action="{{ url_for('admin.delete_address', pandit_id=pandit.id, addr_id=addr.id) }}" onsubmit="return confirm('Delete address?')"><button type="submit" class="btn btn-danger btn-sm">🗑</button></form>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:24px"><div class="empty-icon" style="font-size:1.8rem">📍</div><p>No addresses added.</p><button class="btn btn-primary btn-sm" onclick="openModal('addAddressModal')" style="margin-top:10px">+ Add</button></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Photos -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📸 Photos ({{ pandit.photos|length }})</h3><button class="btn btn-primary btn-sm" onclick="openModal('addPhotoModal')">📷 Upload</button></div>
+        <div class="card-body" style="padding:16px">
+          {% if pandit.photos %}
+          {% set profile_photos = pandit.photos|selectattr('photo_type','equalto','PROFILE')|list %}
+          {% set puja_photos    = pandit.photos|selectattr('photo_type','equalto','PUJA')|list %}
+          {% for title, plist in [('Profile Photos', profile_photos),('Puja Photos', puja_photos)] %}
+          {% if plist %}
+          <div class="detail-label" style="margin-bottom:10px;margin-top:{% if loop.index>1 %}16px{% else %}0{% endif %}">{{ title }}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:8px">
+            {% for ph in plist %}
+            <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden">
+              <img src="{{ url_for('admin.serve_photo', photo_id=ph.id) }}" style="width:100%;height:100px;object-fit:cover;display:block">
+              <div style="padding:5px 8px;background:white;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:0.68rem;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px">{{ ph.file_name or ph.photo_type }}</span>
+                <form method="POST" action="{{ url_for('admin.delete_photo', pandit_id=pandit.id, photo_id=ph.id) }}" onsubmit="return confirm('Delete photo?')" style="display:inline">
+                  <button type="submit" style="background:none;border:none;color:#C0392B;cursor:pointer;font-size:0.9rem;padding:0">✕</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% endfor %}
+          {% else %}
+          <div class="empty-state" style="padding:24px"><div class="empty-icon" style="font-size:1.8rem">📷</div><p>No photos uploaded.</p></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Bank Details -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>🏦 Bank Details</h3><button class="btn btn-outline btn-sm" onclick="openModal('editModal')">✏️ Edit</button></div>
+        <div class="card-body">
+          {% if pandit.bank_account_no or pandit.upi_id %}
+          <div class="detail-grid">
+            <div class="detail-item"><div class="detail-label">Bank Name</div><div class="detail-value">{{ pandit.bank_name or '—' }}</div></div>
+            <div class="detail-item"><div class="detail-label">Account No.</div><div class="detail-value">{{ pandit.bank_account_no or '—' }}</div></div>
+            <div class="detail-item"><div class="detail-label">IFSC</div><div class="detail-value">{{ pandit.bank_ifsc or '—' }}</div></div>
+            <div class="detail-item"><div class="detail-label">Account Holder</div><div class="detail-value">{{ pandit.bank_account_name or '—' }}</div></div>
+          </div>
+          {% if pandit.upi_id %}<div class="detail-item" style="margin-top:8px"><div class="detail-label">UPI ID</div><div class="detail-value">{{ pandit.upi_id }}</div></div>{% endif %}
+          {% else %}
+          <div class="empty-state" style="padding:20px"><div class="empty-icon" style="font-size:1.8rem">🏦</div><p>No bank details.</p><button class="btn btn-outline btn-sm" onclick="openModal('editModal')" style="margin-top:8px">Add Now</button></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Documents -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📄 Documents</h3><button class="btn btn-primary btn-sm" onclick="openModal('uploadDocModal')">📎 Upload</button></div>
+        <div class="card-body">
+          {% if pandit.documents %}
+          <div style="display:grid;gap:12px">
+            {% for doc in pandit.documents %}
+            <div style="display:flex;align-items:center;gap:14px;padding:14px;background:{% if doc.is_verified %}linear-gradient(135deg,#D1FAE5,#ECFDF5){% else %}linear-gradient(135deg,#FEF3C7,#FFFBEB){% endif %};border:1px solid {% if doc.is_verified %}#A7F3D0{% else %}#FDE68A{% endif %};border-radius:var(--radius-sm)">
+              <div style="font-size:1.8rem">📄</div>
+              <div style="flex:1"><div style="font-weight:600;font-size:0.9rem">{{ doc.doc_type }}</div><div style="font-size:0.75rem;color:var(--text-light)">{{ doc.filename }} · {{ doc.uploaded_at.strftime('%d %b %Y') }}</div></div>
+              <span class="badge {% if doc.is_verified %}badge-completed{% else %}badge-pending{% endif %}">{{ '✅ Verified' if doc.is_verified else '⏳ Pending' }}</span>
+              <form method="POST" action="{{ url_for('admin.toggle_document', pandit_id=pandit.id, doc_id=doc.id) }}"><button type="submit" class="btn btn-outline btn-sm">{{ 'Unverify' if doc.is_verified else 'Verify' }}</button></form>
+              <a href="{{ url_for('static', filename='uploads/pandit_docs/'+doc.filename) }}" target="_blank" class="btn btn-outline btn-sm">View</a>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:20px"><p>No documents uploaded.</p></div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Booking History -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📋 Booking History ({{ bookings|length }})</h3></div>
+        {% if bookings %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ref</th><th>Customer</th><th>Ritual</th><th>Slot</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {% for b in bookings %}
+              <tr>
+                <td><code style="font-size:0.75rem;color:var(--saffron)">{{ b.booking_ref }}</code></td>
+                <td style="font-size:0.875rem">{{ b.customer.name }}</td>
+                <td style="font-size:0.8rem">{{ b.ritual_type }}</td>
+                <td style="font-size:0.8rem">{{ b.booking_slot.strftime('%d %b %Y, %I:%M %p') if b.booking_slot else '—' }}</td>
+                <td style="font-weight:700;color:var(--saffron)">{{ b.currency }}{{ "{:,.0f}".format(b.total_amount) }}</td>
+                <td><span class="badge badge-{{ b.status.lower() }}">{{ b.status }}</span></td>
+                <td><a href="{{ url_for('bookings.view_booking', booking_id=b.id) }}" class="btn btn-outline btn-sm">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:30px"><p>No bookings yet.</p></div>
+        {% endif %}
+      </div>
+
+      <!-- Complaints -->
+      <div class="card">
+        <div class="card-header"><h3>⚠️ Complaints ({{ pandit.complaints|length }})</h3><button class="btn btn-sm" style="background:#F59E0B;color:white" onclick="openModal('complaintModal')">+ Log</button></div>
+        {% if pandit.complaints %}
+        <div class="card-body" style="padding:16px">
+          <div style="display:grid;gap:12px">
+            {% for c in pandit.complaints %}
+            <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;background:white">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px">
+                <div><div style="font-weight:600;font-size:0.9rem">{{ c.subject }}</div><div style="font-size:0.75rem;color:var(--text-light)">By {{ c.raised_by }} · {{ c.created_at.strftime('%d %b %Y') }}</div></div>
+                <span class="badge {% if c.status=='Resolved' %}badge-completed{% elif c.status=='Dismissed' %}badge-rescheduled{% else %}badge-pending{% endif %}">{{ c.status }}</span>
+              </div>
+              <p style="font-size:0.85rem;color:var(--text-medium)">{{ c.description }}</p>
+              {% if c.resolution %}<div style="background:var(--cream);border-radius:6px;padding:10px;font-size:0.8rem;margin-top:8px"><strong>Resolution:</strong> {{ c.resolution }}</div>{% endif %}
+              {% if c.status=='Open' %}
+              <form method="POST" action="{{ url_for('admin.resolve_complaint', pandit_id=pandit.id, cid=c.id) }}" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+                <input type="text" name="resolution" class="form-control" placeholder="Resolution..." style="flex:1;font-size:0.85rem;padding:8px 12px">
+                <select name="status" class="form-control" style="width:auto;font-size:0.85rem;padding:8px 12px"><option value="Resolved">Resolved</option><option value="Dismissed">Dismissed</option></select>
+                <button type="submit" class="btn btn-success btn-sm">Save</button>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:30px"><p>No complaints.</p></div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>⚡ Quick Actions</h3></div>
+        <div class="card-body" style="padding:16px;display:grid;gap:10px">
+          <button class="btn btn-primary" style="justify-content:center" onclick="openModal('editModal')">✏️ Edit Profile</button>
+          <button class="btn btn-outline" style="justify-content:center" onclick="openModal('addPujaDetailModal')">🕉️ Add Ritual Detail</button>
+          <button class="btn btn-outline" style="justify-content:center" onclick="openModal('addAddressModal')">📍 Add Address</button>
+          <button class="btn btn-outline" style="justify-content:center" onclick="openModal('addPhotoModal')">📷 Upload Photo</button>
+          {% if pandit.verification_status=='PENDING' %}
+          <button class="btn btn-gold" style="justify-content:center" onclick="openModal('approveModal')">✅ Approve</button>
+          <button class="btn btn-danger" style="justify-content:center" onclick="openModal('rejectModal')">❌ Reject</button>
+          {% endif %}
+          <button class="btn btn-outline" style="justify-content:center" onclick="openModal('payoutModal')">💸 Record Payout</button>
+        </div>
+      </div>
+
+      <!-- Payout Tracker -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>💸 Payout Tracker</h3><button class="btn btn-primary btn-sm" onclick="openModal('payoutModal')">+ Payout</button></div>
+        <div class="card-body" style="padding:0">
+          <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
+            <div style="padding:16px;text-align:center;border-right:1px solid var(--border)"><div style="font-size:1.2rem;font-weight:700;color:#27AE60">₹{{ "{:,.0f}".format(pandit.payouts|selectattr('status','equalto','Completed')|sum(attribute='amount')) }}</div><div style="font-size:0.75rem;color:var(--text-light)">Total Paid</div></div>
+            <div style="padding:16px;text-align:center"><div style="font-size:1.2rem;font-weight:700;color:#E67E22">₹{{ "{:,.0f}".format(pandit.pending_payout) }}</div><div style="font-size:0.75rem;color:var(--text-light)">Pending</div></div>
+          </div>
+          {% if pandit.payouts %}
+          <div style="max-height:240px;overflow-y:auto">
+            {% for payout in pandit.payouts|sort(attribute='created_at',reverse=True) %}
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div><div style="font-size:0.85rem;font-weight:600">{{ payout.method or 'Payout' }}</div><div style="font-size:0.75rem;color:var(--text-light)">{{ payout.created_at.strftime('%d %b %Y') }}</div></div>
+              <div><div style="font-weight:700;color:var(--saffron)">₹{{ "{:,.0f}".format(payout.amount) }}</div><span class="badge {% if payout.status=='Completed' %}badge-completed{% else %}badge-token{% endif %}" style="font-size:0.7rem">{{ payout.status }}</span></div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div style="padding:20px;text-align:center;color:var(--text-light);font-size:0.875rem">No payouts recorded.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Account Status -->
+      <div class="card">
+        <div class="card-header"><h3>🔐 Account Status</h3></div>
+        <div class="card-body" style="padding:16px;display:grid;gap:8px">
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px"><span style="font-size:0.85rem;font-weight:600">Verification</span><span class="badge badge-vstatus-{{ pandit.verification_status.lower() }}">{{ pandit.verification_status }}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px"><span style="font-size:0.85rem;font-weight:600">Account</span><span class="badge badge-astatus-{{ pandit.account_status.lower() }}">{{ pandit.account_status }}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px"><span style="font-size:0.85rem;font-weight:600">Availability</span><span class="badge {% if pandit.is_available %}badge-completed{% else %}badge-cancelled{% endif %}">{{ '🟢 Available' if pandit.is_available else '🔴 Unavailable' }}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px"><span style="font-size:0.85rem;font-weight:600">Ritual Details</span><span style="font-weight:700">{{ pandit.puja_details|length }}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px"><span style="font-size:0.85rem;font-weight:600">Addresses</span><span style="font-weight:700">{{ pandit.addresses|length }}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px"><span style="font-size:0.85rem;font-weight:600">Registered</span><span style="font-size:0.85rem;color:var(--text-medium)">{{ pandit.created_at.strftime('%d %b %Y') }}</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Edit Profile Modal -->
+<div id="editModal" class="modal-overlay">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header"><h3>✏️ Edit Profile</h3><button class="modal-close" onclick="closeModal('editModal')">×</button></div>
+    <form method="POST" action="{{ url_for('admin.update_pandit', pandit_id=pandit.id) }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Name *</label><input type="text" name="name" class="form-control" value="{{ pandit.name }}" required></div>
+          <div class="form-group"><label class="form-label">Mobile *</label><input type="tel" name="mobile" class="form-control" value="{{ pandit.mobile }}" required></div>
+          <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ pandit.email or '' }}"></div>
+          <div class="form-group"><label class="form-label">Experience (yrs)</label><input type="number" name="experience_yrs" class="form-control" min="0" value="{{ pandit.experience_yrs or 0 }}"></div>
+          <div class="form-group"><label class="form-label">Languages</label><input type="text" name="languages" class="form-control" value="{{ pandit.languages or '' }}"></div>
+          <div class="form-group">
+            <label class="form-label">Availability</label>
+            <select name="is_available" class="form-control"><option value="1" {% if pandit.is_available %}selected{% endif %}>Available</option><option value="0" {% if not pandit.is_available %}selected{% endif %}>Unavailable</option></select>
+          </div>
+          <div class="form-group"><label class="form-label">Commission (%)</label><input type="number" name="commission_pct" class="form-control" min="0" max="100" step="0.5" value="{{ pandit.commission_pct or 15 }}"></div>
+        </div>
+        <hr class="divider">
+        <div class="detail-label" style="margin-bottom:10px">Bank Details</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Bank Name</label><input type="text" name="bank_name" class="form-control" value="{{ pandit.bank_name or '' }}"></div>
+          <div class="form-group"><label class="form-label">Account No.</label><input type="text" name="bank_account_no" class="form-control" value="{{ pandit.bank_account_no or '' }}"></div>
+          <div class="form-group"><label class="form-label">IFSC</label><input type="text" name="bank_ifsc" class="form-control" value="{{ pandit.bank_ifsc or '' }}"></div>
+          <div class="form-group"><label class="form-label">Account Holder</label><input type="text" name="bank_account_name" class="form-control" value="{{ pandit.bank_account_name or '' }}"></div>
+        </div>
+        <div class="form-group"><label class="form-label">UPI ID</label><input type="text" name="upi_id" class="form-control" value="{{ pandit.upi_id or '' }}"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">💾 Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Puja Detail Modal -->
+<div id="addPujaDetailModal" class="modal-overlay">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header" style="background:linear-gradient(135deg,var(--maroon),#7A1515)"><h3 style="color:white">🕉️ Add Ritual Puja Detail</h3><button class="modal-close" onclick="closeModal('addPujaDetailModal')">×</button></div>
+    <form method="POST" action="{{ url_for('admin.add_puja_detail', pandit_id=pandit.id) }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Ritual *</label>
+            <select name="ritual_id" class="form-control" id="add_ritual_sel" required
+                    onchange="loadRitualDetails('add_ritual_sel','add_detail_sel','add_variant_detail_preview')">
+              <option value="">— Select Ritual —</option>
+              {% for r in rituals %}<option value="{{ r.id }}">{{ r.title }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ritual Detail Variant *</label>
+            <select name="ritual_detail_id" class="form-control" id="add_detail_sel" required
+                    onchange="previewVariantDetail('add_detail_sel','add_variant_detail_preview')">
+              <option value="">— Select Ritual first —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Variant # <span style="font-weight:400;color:var(--text-light)">(integer)</span></label>
+            <input type="number" name="variant" class="form-control" min="1" value="1" required>
+          </div>
+          <div class="form-group"><label class="form-label">Min. Pandits Required</label><input type="number" name="min_num_pandits" class="form-control" min="1" value="1"></div>
+          <div class="form-group"><label class="form-label">Duration</label><input type="text" name="duration" class="form-control" placeholder="e.g. 2-3 hours"></div>
+        </div>
+        <div id="add_variant_detail_preview" style="display:none;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;font-size:0.82rem;color:var(--text-medium)">
+          <div class="detail-label" style="margin-bottom:6px">📋 Variant Detail (from selected ritual detail)</div>
+          <div id="add_variant_detail_content"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Total Fees (₹) *</label>
+          <input type="number" name="total_fees" class="form-control" min="0" step="0.01" required>
+        </div>
+        <hr class="divider">
+        <div class="detail-label" style="margin-bottom:10px">
+          Fees Breakup
+          <span style="font-weight:400;color:var(--text-light)">(Dakshina · Chadhava · Transportation)</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Dakshina (₹)</label><input type="number" name="fb_dakshina" class="form-control" min="0" step="0.01" placeholder="0"></div>
+          <div class="form-group"><label class="form-label">Chadhava (₹)</label><input type="number" name="fb_chadhava" class="form-control" min="0" step="0.01" placeholder="0"></div>
+          <div class="form-group"><label class="form-label">Transportation (₹)</label><input type="number" name="fb_transportation" class="form-control" min="0" step="0.01" placeholder="0"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('addPujaDetailModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">🕉️ Add Detail</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Puja Detail Modal -->
+<div id="editPujaDetailModal" class="modal-overlay">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header" style="background:linear-gradient(135deg,#5C6BC0,#3949AB)"><h3 style="color:white">✏️ Edit Ritual Puja Detail</h3><button class="modal-close" onclick="closeModal('editPujaDetailModal')">×</button></div>
+    <form method="POST" id="editPujaForm">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Ritual Detail Variant *</label>
+            <select name="ritual_detail_id" id="ep_detail_sel" class="form-control" required
+                    onchange="previewVariantDetail('ep_detail_sel','ep_variant_preview')">
+              <option value="">— Select Detail —</option>
+              {# Populated by JS when edit modal opens #}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Variant #</label><input type="number" name="variant" id="ep_variant" class="form-control" min="1" required></div>
+          <div class="form-group"><label class="form-label">Min. Pandits</label><input type="number" name="min_num_pandits" id="ep_min" class="form-control" min="1"></div>
+          <div class="form-group"><label class="form-label">Duration</label><input type="text" name="duration" id="ep_dur" class="form-control"></div>
+          <div class="form-group" style="grid-column:1/-1"><label class="form-label">Total Fees (₹) *</label><input type="number" name="total_fees" id="ep_fees" class="form-control" min="0" step="0.01" required></div>
+        </div>
+        <div id="ep_variant_preview" style="display:none;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;font-size:0.82rem;color:var(--text-medium)">
+          <div class="detail-label" style="margin-bottom:6px">📋 Variant Detail (ritual_metadata)</div>
+          <div id="ep_variant_preview_content"></div>
+        </div>
+        <hr class="divider">
+        <div class="detail-label" style="margin-bottom:10px">
+          Fees Breakup
+          <span style="font-weight:400;color:var(--text-light)">(Dakshina · Chadhava · Transportation)</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Dakshina (₹)</label><input type="number" name="fb_dakshina" id="ep_dak" class="form-control" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">Chadhava (₹)</label><input type="number" name="fb_chadhava" id="ep_chd" class="form-control" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">Transportation (₹)</label><input type="number" name="fb_transportation" id="ep_trp" class="form-control" min="0" step="0.01"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editPujaDetailModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">💾 Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Address Modal -->
+<div id="addAddressModal" class="modal-overlay">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header"><h3>📍 Add Address</h3><button class="modal-close" onclick="closeModal('addAddressModal')">×</button></div>
+    <form method="POST" action="{{ url_for('admin.add_address', pandit_id=pandit.id) }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Address Type *</label><select name="address_type" class="form-control">{% for at in address_types %}<option value="{{ at }}">{{ at }}</option>{% endfor %}</select></div>
+          <div class="form-group"><label class="form-label">Label</label><input type="text" name="reference_name" class="form-control" placeholder='e.g. "Home"'></div>
+        </div>
+        <div class="form-group"><label class="form-label">Street *</label><textarea name="street" class="form-control" rows="2" required></textarea></div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">City *</label><input type="text" name="city" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">State</label><input type="text" name="state" class="form-control"></div>
+          <div class="form-group"><label class="form-label">PIN Code</label><input type="text" name="zip_code" class="form-control"></div>
+          <div class="form-group"><label class="form-label">Country</label><input type="text" name="country" class="form-control" value="India"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('addAddressModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">📍 Add</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Address Modal -->
+<div id="editAddressModal" class="modal-overlay">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header"><h3>✏️ Edit Address</h3><button class="modal-close" onclick="closeModal('editAddressModal')">×</button></div>
+    <form method="POST" id="editAddressForm">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Address Type *</label><select name="address_type" id="ea_type" class="form-control">{% for at in address_types %}<option value="{{ at }}">{{ at }}</option>{% endfor %}</select></div>
+          <div class="form-group"><label class="form-label">Label</label><input type="text" name="reference_name" id="ea_ref" class="form-control"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Street *</label><textarea name="street" id="ea_street" class="form-control" rows="2" required></textarea></div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">City *</label><input type="text" name="city" id="ea_city" class="form-control" required></div>
+          <div class="form-group"><label class="form-label">State</label><input type="text" name="state" id="ea_state" class="form-control"></div>
+          <div class="form-group"><label class="form-label">PIN Code</label><input type="text" name="zip_code" id="ea_zip" class="form-control"></div>
+          <div class="form-group"><label class="form-label">Country</label><input type="text" name="country" id="ea_country" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editAddressModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">💾 Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Photo Modal -->
+<div id="addPhotoModal" class="modal-overlay">
+  <div class="modal"><div class="modal-header"><h3>📷 Upload Photos</h3><button class="modal-close" onclick="closeModal('addPhotoModal')">×</button></div>
+  <form method="POST" action="{{ url_for('admin.add_photo', pandit_id=pandit.id) }}" enctype="multipart/form-data">
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Photo Type *</label><select name="photo_type" class="form-control">{% for pt in photo_types %}<option value="{{ pt }}">{{ pt }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label class="form-label">Select Images * (PNG, JPG, WEBP)</label><input type="file" name="photos" class="form-control" accept="image/*" multiple required></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('addPhotoModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">📷 Upload</button></div>
+  </form></div>
+</div>
+
+<!-- Approve / Reject / Suspend Modals -->
+<div id="approveModal" class="modal-overlay"><div class="modal"><div class="modal-header" style="background:linear-gradient(135deg,#065F46,#27AE60)"><h3>✅ Approve Pandit</h3><button class="modal-close" onclick="closeModal('approveModal')">×</button></div><form method="POST" action="{{ url_for('admin.verify_pandit', pandit_id=pandit.id) }}"><input type="hidden" name="action" value="approve"><div class="modal-body"><p>Approve and verify <strong>{{ pandit.name }}</strong>?</p></div><div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('approveModal')">Cancel</button><button type="submit" class="btn btn-success btn-sm">✅ Approve</button></div></form></div></div>
+<div id="rejectModal" class="modal-overlay"><div class="modal"><div class="modal-header" style="background:linear-gradient(135deg,#991B1B,#C0392B)"><h3>❌ Reject Pandit</h3><button class="modal-close" onclick="closeModal('rejectModal')">×</button></div><form method="POST" action="{{ url_for('admin.verify_pandit', pandit_id=pandit.id) }}"><input type="hidden" name="action" value="reject"><div class="modal-body"><div class="form-group"><label class="form-label">Reason *</label><textarea name="reason" class="form-control" rows="4" required></textarea></div></div><div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('rejectModal')">Cancel</button><button type="submit" class="btn btn-danger btn-sm">❌ Reject</button></div></form></div></div>
+<div id="suspendModal" class="modal-overlay"><div class="modal"><div class="modal-header" style="background:linear-gradient(135deg,#92400E,#F59E0B)"><h3>⛔ Suspend</h3><button class="modal-close" onclick="closeModal('suspendModal')">×</button></div><form method="POST" action="{{ url_for('admin.set_pandit_status', pandit_id=pandit.id) }}"><input type="hidden" name="action" value="suspend"><div class="modal-body"><div class="form-group"><label class="form-label">Reason *</label><textarea name="reason" class="form-control" rows="3" required></textarea></div></div><div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('suspendModal')">Cancel</button><button type="submit" class="btn btn-sm" style="background:#F59E0B;color:white">⛔ Suspend</button></div></form></div></div>
+
+<!-- Upload Doc Modal -->
+<div id="uploadDocModal" class="modal-overlay"><div class="modal"><div class="modal-header"><h3>📎 Upload Document</h3><button class="modal-close" onclick="closeModal('uploadDocModal')">×</button></div><form method="POST" action="{{ url_for('admin.upload_document', pandit_id=pandit.id) }}" enctype="multipart/form-data"><div class="modal-body"><div class="form-group"><label class="form-label">Document Type *</label><select name="doc_type" class="form-control" required><option value="">— Select —</option>{% for dt in doc_types %}<option value="{{ dt }}">{{ dt }}</option>{% endfor %}</select></div><div class="form-group"><label class="form-label">File * (PDF, JPG, PNG)</label><input type="file" name="document" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required></div><div class="form-group"><label class="form-label">Notes</label><input type="text" name="doc_notes" class="form-control"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('uploadDocModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">📎 Upload</button></div></form></div></div>
+
+<!-- Complaint Modal -->
+<div id="complaintModal" class="modal-overlay"><div class="modal"><div class="modal-header" style="background:linear-gradient(135deg,#92400E,#F59E0B)"><h3>⚠️ Log Complaint</h3><button class="modal-close" onclick="closeModal('complaintModal')">×</button></div><form method="POST" action="{{ url_for('admin.add_complaint', pandit_id=pandit.id) }}"><div class="modal-body"><div class="form-group"><label class="form-label">Raised By</label><input type="text" name="raised_by" class="form-control" value="Admin"></div><div class="form-group"><label class="form-label">Subject *</label><input type="text" name="subject" class="form-control" required></div><div class="form-group"><label class="form-label">Description *</label><textarea name="description" class="form-control" rows="4" required></textarea></div></div><div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('complaintModal')">Cancel</button><button type="submit" class="btn btn-sm" style="background:#F59E0B;color:white">Log</button></div></form></div></div>
+
+<!-- Payout Modal -->
+<div id="payoutModal" class="modal-overlay"><div class="modal"><div class="modal-header"><h3>💸 Record Payout</h3><button class="modal-close" onclick="closeModal('payoutModal')">×</button></div><form method="POST" action="{{ url_for('admin.record_payout', pandit_id=pandit.id) }}"><div class="modal-body"><div class="form-group"><label class="form-label">Amount (₹) *</label><input type="number" name="amount" class="form-control" min="1" step="0.01" required></div><div class="form-group"><label class="form-label">Method *</label><select name="method" class="form-control" required><option value="">— Select —</option>{% for m in payout_methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select></div><div class="form-group"><label class="form-label">Reference / UTR</label><input type="text" name="reference" class="form-control"></div><div class="form-group"><label class="form-label">Notes</label><input type="text" name="notes" class="form-control"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('payoutModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">💸 Record</button></div></form></div></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Ritual details data for dropdowns — keyed by ritual_id
+const RITUAL_DETAILS_DATA = {
+  {% for r in rituals %}
+  "{{ r.id }}": [
+    {% for d in r.details %}
+    {
+      id: {{ d.id }},
+      // label: "Variant {{ loop.index }}{% if d.ritual_metadata %} — {{ d.ritual_metadata | tojson | replace('"','\"') }}{% endif %}",
+      label : "Variant {{ loop.index }}",
+      metadata: {{ d.ritual_metadata | tojson if d.ritual_metadata else 'null' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+
+function buildDetailLabel(baseLabel, metadata) {
+  if (!metadata || typeof metadata !== 'object' || Object.keys(metadata).length === 0) {
+    return baseLabel;
+  }
+  const parts = Object.entries(metadata).map(([k, v]) => `${k}: ${v}`);
+  return `${baseLabel} — {${parts.join(', ')}}`;
+}
+
+
+
+function loadRitualDetails(ritualSelId, detailSelId, previewId) {
+  const ritualId = document.getElementById(ritualSelId).value;
+  const detailSel = document.getElementById(detailSelId);
+  detailSel.innerHTML = '<option value="">— Select Detail —</option>';
+  if (previewId) document.getElementById(previewId).style.display = 'none';
+  if (!ritualId || !RITUAL_DETAILS_DATA[ritualId]) return;
+  RITUAL_DETAILS_DATA[ritualId].forEach(d => {
+    const opt = document.createElement('option');
+    opt.value       = d.id;
+    opt.textContent = d.label;
+    opt.dataset.meta = JSON.stringify(d.metadata || {});
+    detailSel.appendChild(opt);
+  });
+}
+
+function previewVariantDetail(detailSelId, previewId) {
+  const sel = document.getElementById(detailSelId);
+  const opt = sel.options[sel.selectedIndex];
+  const preview = document.getElementById(previewId);
+  if (!opt || !opt.dataset.meta) { preview.style.display = 'none'; return; }
+  try {
+    const meta = JSON.parse(opt.dataset.meta);
+    if (meta && Object.keys(meta).length > 0) {
+      const contentId = previewId + '_content' in document.getElementById(previewId).children
+        ? previewId + '_content' : previewId.replace('_preview', '_content');
+      const el = document.getElementById(contentId) ||
+                 document.getElementById(previewId.replace('preview','preview_content'));
+      if (el) el.textContent = JSON.stringify(meta, null, 2);
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+  } catch(e) { preview.style.display = 'none'; }
+}
+
+function openEditPujaModal(id, ritualId, variant, minP, dur, fees, dak, chd, trp, detailId) {
+  // Populate ritual detail dropdown
+  const detailSel = document.getElementById('ep_detail_sel');
+  detailSel.innerHTML = '<option value="">— Select Detail —</option>';
+  if (ritualId && RITUAL_DETAILS_DATA[ritualId]) {
+    RITUAL_DETAILS_DATA[ritualId].forEach(d => {
+      const opt = document.createElement('option');
+      opt.value       = d.id;
+      opt.textContent = d.label;
+      opt.dataset.meta = JSON.stringify(d.metadata || {});
+      if (d.id === detailId) opt.selected = true;
+      detailSel.appendChild(opt);
+    });
+  }
+  document.getElementById('ep_variant').value = variant;
+  document.getElementById('ep_min').value     = minP;
+  document.getElementById('ep_dur').value     = dur;
+  document.getElementById('ep_fees').value    = fees;
+  document.getElementById('ep_dak').value     = dak || '';
+  document.getElementById('ep_chd').value     = chd || '';
+  document.getElementById('ep_trp').value     = trp || '';
+  previewVariantDetail('ep_detail_sel', 'ep_variant_preview');
+  document.getElementById('editPujaForm').action =
+    '/admin/pandits/{{ pandit.id }}/puja-detail/' + id + '/update';
+  openModal('editPujaDetailModal');
+}
+
+function openEditAddressModal(id, type, ref, street, city, state, zip, country) {
+  document.getElementById('ea_type').value    = type;
+  document.getElementById('ea_ref').value     = ref;
+  document.getElementById('ea_street').value  = street;
+  document.getElementById('ea_city').value    = city;
+  document.getElementById('ea_state').value   = state;
+  document.getElementById('ea_zip').value     = zip;
+  document.getElementById('ea_country').value = country;
+  document.getElementById('editAddressForm').action =
+    '/admin/pandits/{{ pandit.id }}/address/' + id + '/update';
+  openModal('editAddressModal');
+}
+</script>
+{% endblock %}

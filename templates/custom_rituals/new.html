@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block title %}New Custom Ritual Request{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>✨ New Custom Ritual Request</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('custom_rituals.list_requests') }}">Custom Rituals</a>
+      <span class="sep">›</span><span>New</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+  <div style="max-width:900px;margin:0 auto">
+    <form method="POST" action="{{ url_for('custom_rituals.new_request') }}" id="customRitualForm">
+
+      <!-- Basic Info -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📋 Basic Information</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Customer *</label>
+            <select name="customer_id" class="form-control" required>
+              <option value="">— Select Customer —</option>
+              {% for c in customers %}
+              <option value="{{ c.id }}">{{ c.name }} ({{ c.email }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Request Title *</label>
+            <input type="text" name="title" class="form-control" required
+                   placeholder="e.g. Griha Pravesh + Kuldevta Puja for new home">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description <span style="font-weight:400;color:var(--text-light)">(optional)</span></label>
+            <textarea name="description" class="form-control" rows="3"
+                      placeholder="Additional context about this request…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Anchor Ritual <span style="font-weight:400;color:var(--text-light)">(optional — for filtering only)</span>
+            </label>
+            <select name="ritual_id" class="form-control">
+              <option value="">— None (fully custom) —</option>
+              {% for r in rituals %}
+              <option value="{{ r.id }}">{{ r.title }}</option>
+              {% endfor %}
+            </select>
+            <p style="font-size:0.76rem;color:var(--text-light);margin-top:4px">
+              Link to an existing ritual for search purposes. The actual components are defined below.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ritual Components -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>🕉️ Ritual Components</h3>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addComponent()">+ Add Component</button>
+        </div>
+        <div class="card-body" style="padding:16px">
+          <p style="font-size:0.82rem;color:var(--text-light);margin-bottom:16px">
+            List all rituals/pujas that form this custom request. Each component can optionally link to an existing ritual.
+          </p>
+          <div id="components_list" style="display:grid;gap:12px">
+            <!-- Component rows are added dynamically -->
+          </div>
+          <div id="no_components_msg" style="text-align:center;padding:24px;color:#CCC;font-size:0.875rem">
+            No components yet — click "+ Add Component" to begin.
+          </div>
+        </div>
+      </div>
+
+      <!-- Requirements -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📝 Requirements</h3></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">No. of Pandits Required</label>
+              <input type="number" name="num_pandits" class="form-control" min="1" placeholder="e.g. 2">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Samagri Included?</label>
+              <select name="samagri_included" class="form-control">
+                <option value="true">Yes — we need samagri supplied</option>
+                <option value="false">No — customer will arrange</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preferred Date</label>
+              <input type="date" name="preferred_date" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preferred Time</label>
+              <select name="preferred_time" class="form-control">
+                <option value="">— Any —</option>
+                <option value="morning">Morning</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+                <option value="muhurat">As per Muhurat</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Location Type</label>
+              <select name="location_type" class="form-control">
+                <option value="home">Home</option>
+                <option value="temple">Temple</option>
+                <option value="farm">Farm / Open Space</option>
+                <option value="hall">Function Hall</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Has Havan / Fire Space?</label>
+              <select name="has_havan_space" class="form-control">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preferred Languages <span style="font-weight:400;color:var(--text-light)">(comma-separated)</span></label>
+            <input type="text" name="languages" class="form-control" placeholder="e.g. Hindi, Sanskrit">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Special Requests <span style="font-weight:400;color:var(--text-light)">(one per line)</span></label>
+            <textarea name="special_requests" class="form-control" rows="3"
+                      placeholder="Evening muhurat if needed&#10;Experienced pandit required"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:16px;justify-content:flex-end">
+        <a href="{{ url_for('custom_rituals.list_requests') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" style="padding:12px 36px">✨ Create Request</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const RITUALS = [
+  { id: '', title: '— No linked ritual (custom) —' },
+  {% for r in rituals %}
+  { id: {{ r.id }}, title: {{ r.title | tojson }} },
+  {% endfor %}
+];
+
+let componentCount = 0;
+
+function buildRitualOptions(selectedId) {
+  return RITUALS.map(r =>
+    `<option value="${r.id}" ${r.id == selectedId ? 'selected' : ''}>${r.title}</option>`
+  ).join('');
+}
+
+function addComponent(name='', ritualId='') {
+  componentCount++;
+  const idx = componentCount;
+  const list = document.getElementById('components_list');
+  document.getElementById('no_components_msg').style.display = 'none';
+
+  const div = document.createElement('div');
+  div.id = `comp_row_${idx}`;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:flex-end;background:var(--cream);border-radius:8px;padding:14px';
+  div.innerHTML = `
+    <div>
+      <label class="form-label">Component Name *</label>
+      <input type="text" name="component_name_${idx}" class="form-control"
+             value="${name}" placeholder="e.g. Griha Pravesh" required>
+    </div>
+    <div>
+      <label class="form-label">Linked Ritual <span style="font-weight:400;color:var(--text-light)">(optional)</span></label>
+      <select name="component_ritual_id_${idx}" class="form-control">
+        ${buildRitualOptions(ritualId)}
+      </select>
+    </div>
+    <div>
+      <button type="button" class="btn btn-danger btn-sm" onclick="removeComponent(${idx})">✕</button>
+    </div>`;
+  list.appendChild(div);
+}
+
+function removeComponent(idx) {
+  const el = document.getElementById(`comp_row_${idx}`);
+  if (el) el.remove();
+  if (document.getElementById('components_list').children.length === 0) {
+    document.getElementById('no_components_msg').style.display = 'block';
+  }
+}
+
+// Auto-add one row on load
+addComponent();
+</script>
+{% endblock %}

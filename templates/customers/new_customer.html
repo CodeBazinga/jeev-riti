@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Register Customer{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>👤 Register New Customer</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('main.index') }}">Home</a><span class="sep">›</span>
+      <a href="{{ url_for('customers.customer_list') }}">Customers</a><span class="sep">›</span>
+      <span>New</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+  <div style="max-width:560px;margin:0 auto">
+
+    <!-- Steps indicator -->
+    <div class="steps-bar">
+      <div class="step step-active"><div class="step-circle">1</div><div class="step-label">Register</div></div>
+      <div class="step-line"></div>
+      <div class="step step-inactive"><div class="step-circle">2</div><div class="step-label">Add Address</div></div>
+      <div class="step-line"></div>
+      <div class="step step-inactive"><div class="step-circle">3</div><div class="step-label">Book Ritual</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>📧 Basic Registration</h3></div>
+      <div class="card-body">
+        <p style="font-size:0.875rem;color:var(--text-light);margin-bottom:24px">
+          Enter the customer's name and email. Contact number is optional at this stage.
+        </p>
+        <form method="POST" action="{{ url_for('customers.new_customer') }}">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="name" class="form-control"
+                   value="{{ prefill.name if prefill else '' }}"
+                   placeholder="Customer's full name" required autofocus>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address *</label>
+            <input type="email" name="email" class="form-control"
+                   value="{{ prefill.email if prefill else '' }}"
+                   placeholder="customer@email.com" required>
+            <p style="font-size:0.78rem;color:var(--text-light);margin-top:4px">Used as unique identifier.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contact Number</label>
+            <input type="tel" name="contact_number" class="form-control"
+                   value="{{ prefill.contact_number if prefill else '' }}"
+                   placeholder="+91 XXXXX XXXXX" maxlength="15">
+            <p style="font-size:0.78rem;color:var(--text-light);margin-top:4px">Can be added or updated later.</p>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+            <a href="{{ url_for('customers.customer_list') }}" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn btn-primary">Continue →</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:20px;font-size:0.875rem;color:var(--text-light)">
+      Already registered?
+      <a href="{{ url_for('customers.customer_list') }}" style="color:var(--saffron);font-weight:600">Search existing →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

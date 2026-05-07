@@ -1,0 +1,478 @@
+{% extends 'base.html' %}
+{% block title %}{{ ritual.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>🕉️ {{ ritual.title }}</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('rituals.ritual_list') }}">Rituals</a>
+      <span class="sep">›</span><span>{{ ritual.title }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Action bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div style="display:flex;gap:10px;align-items:center">
+      <span style="font-size:0.82rem;color:var(--text-light)">
+        {{ ritual.details|length }} detail{{ 's' if ritual.details|length != 1 }} ·
+        Created {{ ritual.created_at.strftime('%d %b %Y') }}
+      </span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="openModal('editRitualModal')">✏️ Edit Info</button>
+      <button class="btn btn-outline btn-sm" onclick="openModal('addDetailModal')">➕ Add Detail</button>
+      <button class="btn btn-outline btn-sm" onclick="openModal('addImageModal')">🖼️ Upload Image</button>
+      <form method="POST" action="{{ url_for('rituals.delete_ritual', ritual_id=ritual.id) }}"
+            onsubmit="return confirm('Permanently delete {{ ritual.title|e }}?')">
+        <button type="submit" class="btn btn-danger btn-sm">🗑 Delete Ritual</button>
+      </form>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start">
+
+    <!-- LEFT -->
+    <div>
+
+      <!-- Overview -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📋 Overview</h3></div>
+        <div class="card-body">
+          {% if ritual.description %}
+          <p style="color:var(--text-medium);line-height:1.7;margin-bottom:0">{{ ritual.description }}</p>
+          {% else %}
+          <p style="color:#CCC;font-size:0.875rem">No description.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ══ SHARED RITUAL INFO (puja_vidhi & puja_samagri — same across all details) ══ -->
+      {% set first_detail = ritual.details if ritual.details else none %}
+      {% if first_detail and (first_detail.puja_vidhi or first_detail.puja_samagri) %}
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>📖 Puja Information <span style="font-weight:400;font-size:0.8rem;color:var(--text-light)">(shared across all detail variants)</span></h3>
+          <button class="btn btn-outline btn-sm" onclick="openModal('editSharedInfoModal')">✏️ Edit</button>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+            {% if first_detail.puja_vidhi %}
+            <div>
+              <div class="detail-label" style="margin-bottom:8px">Puja Vidhi (Procedure)</div>
+              <div style="font-size:0.875rem;color:var(--text-medium);white-space:pre-line;line-height:1.7">
+                {% if first_detail.puja_vidhi is iterable and first_detail.puja_vidhi is not string %}{{ first_detail.puja_vidhi | join('\n') }}{% else %}{{ first_detail.puja_vidhi or '' }}{% endif %}
+              </div>
+            </div>
+            {% endif %}
+            {% if first_detail.puja_samagri %}
+            <div>
+              <div class="detail-label" style="margin-bottom:8px">Puja Samagri (Items)</div>
+              <div style="font-size:0.875rem;color:var(--text-medium);line-height:1.7">
+                {% if first_detail.puja_samagri is iterable and first_detail.puja_samagri is not string %}
+                  {% for item in first_detail.puja_samagri %}{{ item.get('item','') if item is mapping else item }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {% else %}{{ first_detail.puja_samagri }}{% endif %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ══ RITUAL DETAILS (one card per detail) ══ -->
+      {% for detail in ritual.details %}
+      {% set detail_num = loop.index %}
+      {% set pkg_map = {} %}
+      {% for p in detail.packages %}
+        {% if pkg_map.update({p.package_type: p}) %}{% endif %}
+      {% endfor %}
+      {% set std_pkg  = pkg_map.get('STANDARD') %}
+      {% set comp_pkg = pkg_map.get('COMPLETE') %}
+
+      <div class="card" style="margin-bottom:24px;border:2px solid {% if detail_num==1 %}var(--saffron){% else %}var(--border){% endif %}">
+        <!-- Detail header -->
+        <div style="background:{% if detail_num==1 %}linear-gradient(135deg,var(--maroon),#7A1515){% else %}linear-gradient(135deg,#5C6BC0,#3949AB){% endif %};padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:white">
+              Detail Variant {{ detail_num }}
+            </div>
+            <div style="font-size:0.78rem;color:rgba(255,255,255,0.75);margin-top:3px">
+              {{ detail.mode }} · {{ detail.duration or '—' }} · {{ detail.num_pundits }} Pandit{{ 's' if detail.num_pundits != 1 }}
+              {% if detail.puja_seasons %} · {{ detail.puja_seasons }}{% endif %}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span id="detail-meta-{{ detail.id }}"
+                  data-meta="{{ detail.ritual_metadata | tojson | e if detail.ritual_metadata else '{}' }}"
+                  style="display:none"></span>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,0.18);color:white;border:1px solid rgba(255,255,255,0.3)"
+                    onclick="openEditDetailModal({{ detail.id }})">
+              ✏️ Edit Metadata
+            </button>
+            {% if ritual.details|length > 1 %}
+            <form method="POST" action="{{ url_for('rituals.delete_detail', ritual_id=ritual.id, detail_id=detail.id) }}"
+                  onsubmit="return confirm('Delete this detail and its packages?')">
+              <button type="submit" class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#FECACA;border:1px solid rgba(255,255,255,0.2)">🗑 Delete</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card-body" style="padding:16px">
+
+          <!-- Ritual Metadata -->
+          {% if detail.ritual_metadata %}
+          <div style="background:var(--cream);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+            <div class="detail-label" style="margin-bottom:6px">🔑 Variant Metadata</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              {% for k, v in detail.ritual_metadata.items() %}
+              <span style="background:white;border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:0.82rem;color:var(--text-medium)">
+                <strong>{{ k }}</strong>: {{ v }}
+              </span>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:0.82rem;color:#92400E">
+            ⚠️ No ritual metadata set for this variant.
+            <button class="btn btn-sm" style="margin-left:8px;background:#F59E0B;color:white;padding:3px 10px"
+                    onclick="openEditDetailModal({{ detail.id }})">Add Metadata</button>
+          </div>
+          {% endif %}
+
+          <!-- Packages side by side -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            {% for ptype in required_packages %}
+            {% set pkg = pkg_map.get(ptype) %}
+            {% set is_complete = (ptype == 'COMPLETE') %}
+            <div style="border:2px solid {% if is_complete %}var(--saffron){% else %}#5C6BC0{% endif %};border-radius:var(--radius-sm);overflow:hidden">
+              <div style="background:{% if is_complete %}linear-gradient(135deg,var(--maroon),#7A1515){% else %}linear-gradient(135deg,#5C6BC0,#3949AB){% endif %};padding:12px 16px">
+                <div style="font-family:'Playfair Display',serif;font-weight:700;color:white;font-size:0.95rem">{{ ptype | title }}</div>
+                {% if pkg and pkg.description %}<div style="font-size:0.72rem;color:rgba(255,255,255,0.7);margin-top:2px">{{ pkg.description }}</div>{% endif %}
+                <div style="margin-top:8px">
+                  {% if pkg and pkg.price and pkg.price > 0 %}
+                  <div style="font-size:1.2rem;font-weight:800;color:{{ 'var(--gold-light)' if is_complete else '#E8EAF6' }}">₹{{ "{:,.0f}".format(pkg.price) }}</div>
+                  <div style="font-size:0.66rem;color:rgba(255,255,255,0.6)">Token: ₹{{ "{:,.0f}".format(pkg.token_amount) }}</div>
+                  {% else %}
+                  <div style="font-size:0.85rem;color:rgba(255,255,255,0.5)">Price not set</div>
+                  {% endif %}
+                </div>
+              </div>
+              <div style="padding:10px 14px;background:white;min-height:60px">
+                {% if pkg %}
+                  {% if pkg.included_list %}<div style="font-size:0.75rem;color:#27AE60;margin-bottom:4px">✅ {{ pkg.included_list[:3]|join(', ') }}{% if pkg.included_list|length > 3 %}…{% endif %}</div>{% endif %}
+                  {% if pkg.not_included_list %}<div style="font-size:0.72rem;color:#C0392B">❌ {{ pkg.not_included_list[:2]|join(', ') }}{% if pkg.not_included_list|length > 2 %}…{% endif %}</div>{% endif %}
+                  {% if not pkg.included_list and not pkg.not_included_list %}<p style="font-size:0.75rem;color:#CCC">No items listed.</p>{% endif %}
+                {% else %}
+                <p style="font-size:0.75rem;color:#CCC">Not created yet.</p>
+                {% endif %}
+              </div>
+              <div style="padding:8px 14px;border-top:1px solid var(--border);background:var(--cream)">
+                {% if pkg %}
+                <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;font-size:0.78rem"
+                        onclick="openEditPkgModal({{ pkg.id }},'{{ pkg.package_type }}','{{ pkg.description|default('')|e }}',{{ pkg.price or 0 }},'{{ pkg.included_list|join(', ')|e }}','{{ pkg.not_included_list|join(', ')|e }}')">
+                  ✏️ Edit
+                </button>
+                {% else %}
+                <span style="font-size:0.75rem;color:#CCC;display:block;text-align:center">Auto-created</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+        </div>
+      </div>
+      {% else %}
+      <!-- No details yet -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="empty-state" style="padding:40px">
+          <div class="empty-icon">📋</div>
+          <h3>No Details Added Yet</h3>
+          <p>Add a ritual detail to configure packages and pricing.</p>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addDetailModal')" style="margin-top:12px">➕ Add First Detail</button>
+        </div>
+      </div>
+      {% endfor %}
+
+      <!-- Images -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🖼️ Images ({{ ritual.images|length }})</h3>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addImageModal')">📎 Upload</button>
+        </div>
+        <div class="card-body" style="padding:16px">
+          {% if ritual.images %}
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
+            {% for img in ritual.images %}
+            <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden">
+              <img src="{{ url_for('rituals.serve_image', img_id=img.id) }}"
+                   style="width:100%;height:110px;object-fit:cover;display:block">
+              <div style="padding:6px 10px;background:white;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:0.7rem;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px">{{ img.file_name }}</span>
+                <form method="POST" action="{{ url_for('rituals.delete_image', ritual_id=ritual.id, img_id=img.id) }}"
+                      onsubmit="return confirm('Delete image?')" style="display:inline">
+                  <button type="submit" style="background:none;border:none;color:#C0392B;cursor:pointer;font-size:1rem;padding:0">✕</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:24px"><p style="font-size:0.875rem">No images uploaded yet.</p></div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT sidebar -->
+    <div style="position:sticky;top:90px">
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>📊 Summary</h3></div>
+        <div class="card-body" style="padding:16px;display:grid;gap:8px">
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px">
+            <span style="font-size:0.85rem;font-weight:600">Details / Variants</span>
+            <span style="font-weight:700">{{ ritual.details|length }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:linear-gradient(135deg,#EEF2FF,#F8F9FF);border-radius:8px;border:1px solid #C5CAE9">
+            <span style="font-size:0.85rem;font-weight:600;color:#3949AB">Standard (from)</span>
+            <span style="font-weight:800;color:#3949AB">
+            {% set std_prices = [] %}
+              {% for d in ritual.details %}{% for p in d.packages %}{% if p.package_type=='STANDARD' and p.price>0 %}{% if std_prices.append(p.price) %}{% endif %}{% endif %}{% endfor %}{% endfor %}
+              {% if std_prices %}₹{{ "{:,.0f}".format(std_prices|min) }}{% else %}—{% endif %}
+            </span >
+            <!-- <span style="font-weight:800;color:#3949AB">{% if ritual.min_price %}₹{{ "{:,.0f}".format(ritual.min_price) }}{% else %}—{% endif %}</span> -->
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:linear-gradient(135deg,#FFF8F0,white);border-radius:8px;border:1px solid var(--border)">
+            <span style="font-size:0.85rem;font-weight:600;color:var(--maroon)">Complete (from)</span>
+            <span style="font-weight:800;color:var(--saffron)">
+              {% set comp_prices = [] %}
+              {% for d in ritual.details %}{% for p in d.packages %}{% if p.package_type=='COMPLETE' and p.price>0 %}{% if comp_prices.append(p.price) %}{% endif %}{% endif %}{% endfor %}{% endfor %}
+              {% if comp_prices %}₹{{ "{:,.0f}".format(comp_prices|min) }}{% else %}—{% endif %}
+            </span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px">
+            <span style="font-size:0.85rem;font-weight:600">Images</span>
+            <span style="font-weight:700">{{ ritual.images|length }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--cream);border-radius:8px">
+            <span style="font-size:0.85rem;font-weight:600">Created</span>
+            <span style="font-size:0.85rem;color:var(--text-medium)">{{ ritual.created_at.strftime('%d %b %Y') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>⚡ Quick Actions</h3></div>
+        <div class="card-body" style="padding:16px;display:grid;gap:10px">
+          <button class="btn btn-primary" style="justify-content:center" onclick="openModal('editRitualModal')">✏️ Edit Ritual Info</button>
+          <button class="btn btn-outline" style="justify-content:center" onclick="openModal('addDetailModal')">➕ Add Detail Variant</button>
+          <button class="btn btn-outline" style="justify-content:center" onclick="openModal('addImageModal')">🖼️ Upload Image</button>
+          <a href="{{ url_for('bookings.new_booking') }}" class="btn btn-gold" style="justify-content:center;text-decoration:none">🙏 Book This Ritual</a>
+          <form method="POST" action="{{ url_for('rituals.delete_ritual', ritual_id=ritual.id) }}"
+                onsubmit="return confirm('Permanently delete {{ ritual.title|e }}?')">
+            <button type="submit" class="btn btn-danger" style="width:100%;justify-content:center">🗑 Delete Ritual</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Edit Ritual Info -->
+<div id="editRitualModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><h3>✏️ Edit Ritual</h3><button class="modal-close" onclick="closeModal('editRitualModal')">×</button></div>
+    <form method="POST" action="{{ url_for('rituals.update_ritual', ritual_id=ritual.id) }}">
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" value="{{ ritual.title }}" required></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="4">{{ ritual.description or '' }}</textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editRitualModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">💾 Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Detail Variant (full form with packages) -->
+<div id="addDetailModal" class="modal-overlay">
+  <div class="modal" style="max-width:820px">
+    <div class="modal-header" style="background:linear-gradient(135deg,#5C6BC0,#3949AB)">
+      <h3 style="color:white">➕ Add Ritual Detail Variant</h3>
+      <button class="modal-close" onclick="closeModal('addDetailModal')">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('rituals.add_detail', ritual_id=ritual.id) }}">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Mode</label>
+            <select name="mode" class="form-control">
+              {% for m in ritual_modes %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Duration</label><input type="text" name="duration" class="form-control" placeholder="e.g. 2–3 hours"></div>
+          <div class="form-group"><label class="form-label">No. of Pandits</label><input type="number" name="num_pundits" class="form-control" min="1" value="1"></div>
+          <div class="form-group"><label class="form-label">Best Seasons</label><input type="text" name="puja_seasons" class="form-control"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Ritual Metadata *
+            <span style="font-weight:400;color:var(--text-light);font-size:0.8rem">(JSON dict — e.g. {"num_of_jaap": 21000})</span>
+          </label>
+          <textarea name="ritual_metadata" class="form-control" rows="2" placeholder='{"num_of_jaap": 21000}' required></textarea>
+        </div>
+        <hr class="divider">
+        <div class="detail-label" style="margin-bottom:12px;font-size:0.95rem">📦 Packages for this Detail</div>
+        <div style="display:grid;gap:16px">
+          {% set suffix = '' %}
+          {% include 'rituals/_package_fields.html' %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('addDetailModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">➕ Add Detail</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Detail Metadata (only ritual_metadata changes) -->
+<div id="editDetailModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><h3 id="editDetailTitle">✏️ Edit Detail Metadata</h3><button class="modal-close" onclick="closeModal('editDetailModal')">×</button></div>
+    <form method="POST" id="editDetailForm">
+      <div class="modal-body">
+        <div style="background:#EEF2FF;border:1px solid #C5CAE9;border-radius:8px;padding:12px;margin-bottom:16px;font-size:0.85rem;color:#3949AB">
+          ℹ️ Per the ritual design, only the <strong>Ritual Metadata</strong> differs between detail variants. All other fields (mode, duration, vidhi, samagri) are shared across the ritual.
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Ritual Metadata *
+            <span style="font-weight:400;color:var(--text-light);font-size:0.8rem">(JSON dict — e.g. {"num_of_jaap": 21000})</span>
+          </label>
+          <textarea name="ritual_metadata" id="editDetailMeta" class="form-control" rows="4"
+                    placeholder='{"num_of_jaap": 21000}' required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editDetailModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">💾 Save Metadata</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Package Modal -->
+<div id="editPkgModal" class="modal-overlay">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header" id="editPkgHeader"><h3 id="editPkgTitle">✏️ Edit Package</h3><button class="modal-close" onclick="closeModal('editPkgModal')">×</button></div>
+    <form method="POST" id="editPkgForm">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Package Type</label><input type="text" name="package_type" id="ep_type" class="form-control" readonly style="background:var(--cream);cursor:not-allowed"></div>
+          <div class="form-group"><label class="form-label">Price (₹) *</label><input type="number" name="price" id="ep_price" class="form-control" min="0" step="0.01" required></div>
+        </div>
+        <div class="form-group"><label class="form-label">Short Description</label><input type="text" name="description" id="ep_desc" class="form-control"></div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">✅ Included (comma-separated)</label><textarea name="included" id="ep_included" class="form-control" rows="4"></textarea></div>
+          <div class="form-group"><label class="form-label">❌ Not Included (comma-separated)</label><textarea name="not_included" id="ep_not_included" class="form-control" rows="4"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editPkgModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">💾 Save Package</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Upload Image -->
+<div id="addImageModal" class="modal-overlay">
+  <div class="modal"><div class="modal-header"><h3>🖼️ Upload Images</h3><button class="modal-close" onclick="closeModal('addImageModal')">×</button></div>
+  <form method="POST" action="{{ url_for('rituals.add_image', ritual_id=ritual.id) }}" enctype="multipart/form-data">
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Select Images *</label><input type="file" name="images" class="form-control" accept="image/*" multiple required></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline btn-sm" onclick="closeModal('addImageModal')">Cancel</button><button type="submit" class="btn btn-primary btn-sm">📎 Upload</button></div>
+  </form></div>
+</div>
+<!-- Edit Shared Info (puja_vidhi + puja_samagri — updates all details via first detail) -->
+<div id="editSharedInfoModal" class="modal-overlay">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header"><h3>✏️ Edit Shared Puja Information</h3><button class="modal-close" onclick="closeModal('editSharedInfoModal')">×</button></div>
+    {% if ritual.details %}
+    <form method="POST" action="{{ url_for('rituals.update_shared_info', ritual_id=ritual.id) }}">
+      <div class="modal-body">
+        <div style="background:#EEF2FF;border:1px solid #C5CAE9;border-radius:8px;padding:12px;margin-bottom:16px;font-size:0.85rem;color:#3949AB">
+          ℹ️ Puja Vidhi and Puja Samagri are <strong>shared</strong> across all detail variants of this ritual.
+          Saving here updates all variants.
+        </div>
+        <div class="form-group">
+          <label class="form-label">Puja Vidhi (Procedure)</label>
+          <textarea name="puja_vidhi" class="form-control" rows="5"
+                    placeholder="Step-by-step procedure...">{% if ritual.details and ritual.details[0].puja_vidhi %}{% if ritual.details[0].puja_vidhi is iterable and ritual.details[0].puja_vidhi is not string %}{{ ritual.details[0].puja_vidhi | join('\n') }}{% else %}{{ ritual.details[0].puja_vidhi }}{% endif %}{% endif %}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Puja Samagri <span style="font-weight:400;color:var(--text-light)">(one item per line)</span></label>
+          <textarea name="puja_samagri" class="form-control" rows="4" placeholder="Flowers&#10;Camphor&#10;Ghee">{% if ritual.details[0].puja_samagri %}{% if ritual.details[0].puja_samagri is iterable and ritual.details[0].puja_samagri is not string %}{% for item in ritual.details[0].puja_samagri %}{{ item.get('item','') if item is mapping else item }}
+{% endfor %}{% else %}{{ ritual.details[0].puja_samagri }}{% endif %}{% endif %}</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editSharedInfoModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">💾 Save</button>
+      </div>
+    </form>
+    {% else %}
+    <div class="modal-body"><p style="color:var(--text-light)">Add a detail first.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditDetailModal(id) {
+  // Read metadata safely from a hidden data attribute — avoids HTML escaping issues
+  const span    = document.getElementById('detail-meta-' + id);
+  const rawMeta = span ? span.dataset.meta : '{}';
+  try {
+    const parsed = JSON.parse(rawMeta);
+    document.getElementById('editDetailMeta').value = JSON.stringify(parsed, null, 2);
+  } catch(e) {
+    document.getElementById('editDetailMeta').value = rawMeta || '{}';
+  }
+  document.getElementById('editDetailForm').action =
+    '/rituals/{{ ritual.id }}/detail/' + id + '/update';
+  openModal('editDetailModal');
+}
+
+function openEditPkgModal(id, type, desc, price, included, notIncluded) {
+  document.getElementById('ep_type').value         = type;
+  document.getElementById('ep_price').value        = price;
+  document.getElementById('ep_desc').value         = desc;
+  document.getElementById('ep_included').value     = included;
+  document.getElementById('ep_not_included').value = notIncluded;
+  const label = type === 'COMPLETE' ? 'Complete' : 'Standard';
+  document.getElementById('editPkgTitle').textContent = '✏️ Edit ' + label + ' Package';
+  const hdr = document.getElementById('editPkgHeader');
+  hdr.style.background = type === 'COMPLETE'
+    ? 'linear-gradient(135deg,var(--maroon),#7A1515)'
+    : 'linear-gradient(135deg,#5C6BC0,#3949AB)';
+  document.getElementById('editPkgForm').action =
+    '/rituals/{{ ritual.id }}/package/' + id + '/update';
+  openModal('editPkgModal');
+}
+</script>
+{% endblock %}

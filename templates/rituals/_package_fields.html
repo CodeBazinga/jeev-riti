@@ -1,0 +1,69 @@
+{# Reusable macro — include inside a form to render Standard + Complete package fields.
+   `suffix` variable can be set by the including template to namespace field names (default ''). #}
+{% set sfx = suffix|default('') %}
+
+<!-- STANDARD -->
+<div style="border:2px solid #5C6BC0;border-radius:var(--radius);overflow:hidden">
+  <div style="background:linear-gradient(135deg,#5C6BC0,#3949AB);padding:16px 24px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:white">Standard Package</div>
+      <div style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-top:2px">Core ritual with essential items</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;font-size:0.8rem;color:rgba(255,255,255,0.9)">STANDARD</div>
+  </div>
+  <div style="padding:20px 24px;background:white">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Price (₹) *</label>
+        <input type="number" name="standard_price{{ sfx }}" class="form-control" min="0" step="0.01" placeholder="e.g. 5000" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Short Description</label>
+        <input type="text" name="standard_description{{ sfx }}" class="form-control" placeholder="e.g. Basic ritual with 1 Pandit">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">✅ Included <span style="font-weight:400;color:var(--text-light)">(comma-separated)</span></label>
+        <textarea name="standard_included{{ sfx }}" class="form-control" rows="3" placeholder="Flowers, Prasad, Dakshina..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">❌ Not Included <span style="font-weight:400;color:var(--text-light)">(comma-separated)</span></label>
+        <textarea name="standard_not_included{{ sfx }}" class="form-control" rows="3" placeholder="Samagri, Travel expenses..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPLETE -->
+<div style="border:2px solid var(--saffron);border-radius:var(--radius);overflow:hidden">
+  <div style="background:linear-gradient(135deg,var(--maroon),#7A1515);padding:16px 24px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:white">Complete Package</div>
+      <div style="font-size:0.78rem;color:rgba(255,255,255,0.7);margin-top:2px">Full ritual with all samagri &amp; extras</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:6px 14px;font-size:0.8rem;color:rgba(255,255,255,0.9)">COMPLETE</div>
+  </div>
+  <div style="padding:20px 24px;background:white">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Price (₹) *</label>
+        <input type="number" name="complete_price{{ sfx }}" class="form-control" min="0" step="0.01" placeholder="e.g. 9000" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Short Description</label>
+        <input type="text" name="complete_description{{ sfx }}" class="form-control" placeholder="e.g. Full ritual with all samagri included">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">✅ Included <span style="font-weight:400;color:var(--text-light)">(comma-separated)</span></label>
+        <textarea name="complete_included{{ sfx }}" class="form-control" rows="3" placeholder="All samagri, Flowers, Prasad, Dakshina, Travel..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">❌ Not Included <span style="font-weight:400;color:var(--text-light)">(comma-separated)</span></label>
+        <textarea name="complete_not_included{{ sfx }}" class="form-control" rows="3" placeholder="Accommodation..."></textarea>
+      </div>
+    </div>
+  </div>
+</div>

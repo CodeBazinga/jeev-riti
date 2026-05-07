@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Rituals{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>🕉️ Ritual Catalogue</h1>
+    <p>Manage rituals, their detail variants and packages</p>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
+    <div class="stat-card">
+      <div class="stat-icon orange">🕉️</div>
+      <div class="stat-info"><div class="stat-value">{{ stats.total }}</div><div class="stat-label">Total Rituals</div></div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #5C6BC0">
+      <div class="stat-icon" style="background:linear-gradient(135deg,rgba(92,107,192,.15),rgba(92,107,192,.05))">📋</div>
+      <div class="stat-info"><div class="stat-value" style="color:#5C6BC0">{{ stats.details }}</div><div class="stat-label">Total Details</div></div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid var(--gold)">
+      <div class="stat-icon gold">📦</div>
+      <div class="stat-info"><div class="stat-value">{{ stats.packages }}</div><div class="stat-label">Total Packages</div></div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar" style="margin-bottom:24px">
+    <form method="GET" action="{{ url_for('rituals.ritual_list') }}">
+      <div class="filter-group" style="flex:2;min-width:220px">
+        <label>Search</label>
+        <input type="text" name="search" value="{{ filters.search }}" placeholder="Search by title...">
+      </div>
+      <div class="filter-group">
+        <label>Mode</label>
+        <select name="mode">
+          <option value="">All Modes</option>
+          {% for m in ritual_modes %}
+          <option value="{{ m }}" {% if filters.mode==m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group" style="flex-direction:row;gap:8px;align-items:flex-end">
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Search</button>
+        <a href="{{ url_for('rituals.ritual_list') }}" class="btn btn-outline btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2>🕉️ Rituals ({{ rituals|length }})</h2>
+      <a href="{{ url_for('rituals.new_ritual') }}" class="btn btn-primary btn-sm">+ Add Ritual</a>
+    </div>
+
+    {% if rituals %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ritual</th>
+            <th style="text-align:center">Details</th>
+            <th style="text-align:center">Standard (min)</th>
+            <th style="text-align:center">Complete (min)</th>
+            <th>Images</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rituals %}
+          {# Aggregate min prices across all details #}
+          {% set std_prices  = [] %}
+          {% set comp_prices = [] %}
+          {% for d in r.details %}
+            {% for p in d.packages %}
+              {% if p.package_type == 'STANDARD' and p.price > 0 %}{% if std_prices.append(p.price) %}{% endif %}{% endif %}
+              {% if p.package_type == 'COMPLETE' and p.price > 0 %}{% if comp_prices.append(p.price) %}{% endif %}{% endif %}
+            {% endfor %}
+          {% endfor %}
+
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:12px">
+                {% if r.primary_image %}
+                <img src="{{ url_for('rituals.serve_image', img_id=r.primary_image.id) }}"
+                     style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--border);flex-shrink:0">
+                {% else %}
+                <div style="width:42px;height:42px;background:linear-gradient(135deg,var(--saffron),var(--gold));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0">🕉️</div>
+                {% endif %}
+                <div>
+                  <div style="font-weight:700">{{ r.title }}</div>
+                  {% if r.description %}<div style="font-size:0.75rem;color:var(--text-light);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.description }}</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td style="text-align:center">
+              <span style="font-weight:700;font-size:1rem">{{ r.details|length }}</span>
+              {% if r.details|length > 0 %}
+              <div style="font-size:0.7rem;color:var(--text-light)">{{ r.details[0].mode if r.details else '' }}</div>
+              {% endif %}
+            </td>
+            <td style="text-align:center">
+              {% if std_prices %}
+              <div style="font-weight:700;color:#3949AB">₹{{ "{:,.0f}".format(std_prices|min) }}</div>
+              <div style="font-size:0.68rem;color:#7986CB">min across {{ std_prices|length }} detail{{ 's' if std_prices|length!=1 }}</div>
+              {% else %}<span style="color:#CCC;font-size:0.8rem">Not set</span>{% endif %}
+            </td>
+            <td style="text-align:center">
+              {% if comp_prices %}
+              <div style="font-weight:700;color:var(--saffron)">₹{{ "{:,.0f}".format(comp_prices|min) }}</div>
+              <div style="font-size:0.68rem;color:var(--gold)">min across {{ comp_prices|length }} detail{{ 's' if comp_prices|length!=1 }}</div>
+              {% else %}<span style="color:#CCC;font-size:0.8rem">Not set</span>{% endif %}
+            </td>
+            <td style="text-align:center;font-weight:600">{{ r.images|length }}</td>
+            <td>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <a href="{{ url_for('rituals.view_ritual', ritual_id=r.id) }}" class="btn btn-outline btn-sm">View</a>
+                <form method="POST" action="{{ url_for('rituals.delete_ritual', ritual_id=r.id) }}"
+                      onsubmit="return confirm('Delete {{ r.title|e }}? All details, packages and images will be removed.')">
+                  <button type="submit" class="btn btn-danger btn-sm">🗑 Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🕉️</div>
+      <h3>No Rituals Found</h3>
+      <p> {% if filters.search or filters.mode %} No rituals match your search.{% else %}Add your first ritual.{% endif %}</p>
+      <a href="{{ url_for('rituals.new_ritual') }}" class="btn btn-primary" style="margin-top:16px">+ Add Ritual</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

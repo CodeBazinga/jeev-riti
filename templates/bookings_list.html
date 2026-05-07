@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}All Bookings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>📋 All Bookings</h1>
+    <p>Manage, track and analyse all ritual bookings</p>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:28px">
+    <div class="stat-card"><div class="stat-icon orange">📋</div><div class="stat-info"><div class="stat-value">{{ bookings|length }}</div><div class="stat-label">Total Bookings</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">{{ bookings|selectattr('status','equalto','CONFIRMED')|list|length }}</div><div class="stat-label">Confirmed</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">🎉</div><div class="stat-info"><div class="stat-value">{{ bookings|selectattr('status','equalto','COMPLETED')|list|length }}</div><div class="stat-label">Completed</div></div></div>
+    <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-info"><div class="stat-value">{{ bookings|selectattr('status','equalto','CANCELLED')|list|length }}</div><div class="stat-label">Cancelled</div></div></div>
+    <div class="stat-card" style="border-left:4px solid var(--gold)"><div class="stat-icon gold">💰</div><div class="stat-info"><div class="stat-value" style="font-size:1.2rem;color:var(--saffron)">₹{{ "{:,.0f}".format(total_revenue) }}</div><div class="stat-label">Total Revenue</div></div></div>
+    <div class="stat-card" style="border-left:4px solid var(--saffron)"><div class="stat-icon orange">🧘</div><div class="stat-info"><div class="stat-value">{{ active_pandits }}</div><div class="stat-label">Active Pandits</div></div></div>
+    <div class="stat-card" style="border-left:4px solid {% if future_no_pandit>0 %}#E74C3C{% else %}#27AE60{% endif %}">
+      <div class="stat-icon" style="background:{% if future_no_pandit>0 %}linear-gradient(135deg,rgba(231,76,60,.15),rgba(231,76,60,.05)){% else %}linear-gradient(135deg,rgba(39,174,96,.15),rgba(39,174,96,.05)){% endif %}">{{ '⚠️' if future_no_pandit>0 else '✅' }}</div>
+      <div class="stat-info"><div class="stat-value" style="color:{% if future_no_pandit>0 %}#C0392B{% else %}#27AE60{% endif %}">{{ future_no_pandit }}</div><div class="stat-label">Awaiting Pandit</div></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div style="display:grid;grid-template-columns:1.8fr 1fr;gap:20px;margin-bottom:28px">
+    <div class="card">
+      <div class="card-header" style="padding:16px 24px"><h3 style="font-size:1rem">📈 Revenue Trend — Last 30 Days</h3></div>
+      <div style="padding:16px 20px 20px"><canvas id="revenueTrendChart" height="110"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header" style="padding:16px 24px"><h3 style="font-size:1rem">🕉️ Bookings by Ritual</h3></div>
+      <div style="padding:16px 20px 20px;display:flex;align-items:center;justify-content:center"><canvas id="ritualVolumeChart" height="170"></canvas></div>
+    </div>
+  </div>
+
+  {% if future_no_pandit>0 %}
+  <div style="background:linear-gradient(135deg,#FEF3C7,#FFFBEB);border:1px solid #FDE68A;border-left:4px solid #F59E0B;border-radius:var(--radius-sm);padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:1.3rem">⚠️</span>
+    <div style="flex:1"><strong style="color:#92400E">{{ future_no_pandit }} upcoming booking{{ 's' if future_no_pandit!=1 }} pending Pandit assignment.</strong></div>
+    <a href="{{ url_for('main.bookings_list') }}?status=CONFIRMED" class="btn btn-sm" style="background:#F59E0B;color:white;flex-shrink:0">View →</a>
+  </div>
+  {% endif %}
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <form method="GET" action="{{ url_for('main.bookings_list') }}">
+      <div class="filter-group"><label>Sort by Date</label>
+        <select name="sort_date"><option value="desc" {% if filters.sort_date=='desc' %}selected{% endif %}>Newest First</option><option value="asc" {% if filters.sort_date=='asc' %}selected{% endif %}>Oldest First</option></select>
+      </div>
+      <div class="filter-group"><label>City</label>
+        <select name="city"><option value="">All Cities</option>{% for city in cities %}<option value="{{ city }}" {% if filters.city==city %}selected{% endif %}>{{ city }}</option>{% endfor %}</select>
+      </div>
+      <div class="filter-group"><label>Status</label>
+        <select name="status"><option value="">All</option>{% for s in booking_statuses %}<option value="{{ s }}" {% if filters.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+      </div>
+      <div class="filter-group"><label>Ritual Type</label>
+        <select name="ritual_type"><option value="">All Rituals</option>{% for rt in ritual_titles %}<option value="{{ rt }}" {% if filters.ritual_type==rt %}selected{% endif %}>{{ rt }}</option>{% endfor %}</select>
+      </div>
+      <div class="filter-group"><label>Customer Email</label><input type="email" name="email" value="{{ filters.email }}" placeholder="Search by email"></div>
+      <div class="filter-group" style="flex-direction:row;gap:8px;align-items:flex-end">
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Filter</button>
+        <a href="{{ url_for('main.bookings_list') }}" class="btn btn-outline btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-header"><h2>🙏 Bookings</h2><a href="{{ url_for('bookings.new_booking') }}" class="btn btn-primary btn-sm">+ New Booking</a></div>
+    {% if bookings %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Ref</th><th>Customer</th><th>Ritual</th><th>Package</th><th>Slot</th><th>Amount</th><th>Pandit</th><th>Status</th><th>Payment</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for b in bookings %}
+          <tr>
+            <td><code style="font-size:0.75rem;color:var(--saffron)">{{ b.booking_ref }}</code></td>
+            <td>
+              <div style="font-weight:600">{{ b.customer.name }}</div>
+              <div style="font-size:0.75rem;color:var(--text-light)">{{ b.customer.contact_number or b.customer.email }}</div>
+            </td>
+            <td style="font-size:0.85rem;font-weight:600">{{ b.ritual_type }}</td>
+            <td>
+              {% if b.ritual_snapshot and b.ritual_snapshot is mapping %}
+              <span class="expertise-tag">{{ b.ritual_snapshot.get('package_type','—') }}</span>
+              {% elif b.ritual_package %}
+              <span class="expertise-tag">{{ b.ritual_package.package_type }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if b.booking_slot %}
+              <div style="font-weight:600">{{ b.booking_slot.strftime('%d %b %Y') }}</div>
+              <div style="font-size:0.75rem;color:var(--text-light)">{{ b.booking_slot.strftime('%I:%M %p') }}</div>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-weight:700;color:var(--saffron)">{{ b.currency }}{{ "{:,.0f}".format(b.total_amount) }}</td>
+            <td>
+              {% if b.pandit %}<span style="font-size:0.85rem;color:var(--text-medium)">{{ b.pandit.name }}</span>
+              {% elif b.status=='CONFIRMED' and b.booking_slot and b.booking_slot.date() >= today_date %}<span style="color:#E67E22;font-size:0.8rem;font-weight:600">⚠️ Unassigned</span>
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="badge badge-{{ b.status.lower() }}">{{ b.status }}</span></td>
+            <td><span class="badge badge-{{ 'paid' if b.payment_status=='Fully Paid' else 'unpaid' if b.payment_status=='Unpaid' else 'token' }}">{{ b.payment_status }}</span></td>
+            <td><a href="{{ url_for('bookings.view_booking', booking_id=b.id) }}" class="btn btn-outline btn-sm">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">🕉️</div><h3>No Bookings Found</h3><p>No bookings match your filters.</p><a href="{{ url_for('bookings.new_booking') }}" class="btn btn-primary" style="margin-top:16px">+ New Booking</a></div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const trendLabels  = {{ trend_labels|safe }};
+const trendValues  = {{ trend_values|safe }};
+const ritualLabels = {{ ritual_labels|safe }};
+const ritualValues = {{ ritual_values|safe }};
+
+Chart.defaults.font.family = "'Poppins', sans-serif";
+Chart.defaults.font.size   = 11;
+Chart.defaults.color       = '#8B6914';
+
+const revenueCtx = document.getElementById('revenueTrendChart').getContext('2d');
+const gradient   = revenueCtx.createLinearGradient(0,0,0,220);
+gradient.addColorStop(0,'rgba(232,117,26,0.25)');
+gradient.addColorStop(1,'rgba(232,117,26,0)');
+
+new Chart(revenueCtx, { type:'line', data:{ labels:trendLabels, datasets:[{ label:'Revenue', data:trendValues, borderColor:'#E8751A', backgroundColor:gradient, borderWidth:2.5, pointRadius:3, pointBackgroundColor:'#E8751A', pointBorderColor:'#fff', pointBorderWidth:2, fill:true, tension:0.45 }] },
+  options:{ responsive:true, interaction:{mode:'index',intersect:false}, plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#2C1810', titleColor:'#F0D060', bodyColor:'#fff', padding:10, callbacks:{label:ctx=>' ₹'+ctx.parsed.y.toLocaleString('en-IN')} } }, scales:{ x:{grid:{display:false},ticks:{maxTicksLimit:10,maxRotation:0}}, y:{beginAtZero:true,grid:{color:'rgba(232,117,26,0.08)'},ticks:{callback:v=>'₹'+(v>=1000?(v/1000).toFixed(0)+'k':v)}} } }
+});
+
+new Chart(document.getElementById('ritualVolumeChart').getContext('2d'), { type:'doughnut', data:{ labels:ritualLabels.length?ritualLabels:['No data'], datasets:[{ data:ritualValues.length?ritualValues:[1], backgroundColor:ritualLabels.length?['#E8751A','#D4AF37','#8B1A1A','#C45E0A','#27AE60','#2980B9']:['#EEE'], borderColor:'#fff', borderWidth:3, hoverOffset:8 }] },
+  options:{ responsive:true, cutout:'62%', plugins:{ legend:{position:'bottom',labels:{padding:12,boxWidth:12,boxHeight:12,color:'#5C3D2E'}}, tooltip:{backgroundColor:'#2C1810',titleColor:'#F0D060',bodyColor:'#fff',callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed} booking${ctx.parsed!==1?'s':''}`}} } }
+});
+</script>
+{% endblock %}

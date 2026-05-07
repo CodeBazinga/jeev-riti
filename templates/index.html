@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-content">
+    <span class="hero-om">🕉️</span>
+    <h1>Sacred Rituals, <span>Simplified</span></h1>
+    <p>Book authentic Hindu rituals performed by experienced Pandits. Browse our catalogue and choose the package that suits you best.</p>
+    <div class="hero-actions">
+      <a href="{{ url_for('bookings.new_booking') }}" class="btn btn-gold">🙏 Book a Ritual</a>
+      <a href="{{ url_for('rituals.ritual_list') }}"  class="btn btn-primary">📖 View All Rituals</a>
+    </div>
+  </div>
+</section>
+
+<div class="rituals-section">
+  <div class="rituals-grid">
+    {% if rituals %}
+      {% for r in rituals[:4] %}
+      <div class="ritual-card">
+        {% if r.primary_image %}
+        <img src="{{ url_for('rituals.serve_image', img_id=r.primary_image.id) }}"
+             style="width:60px;height:60px;object-fit:cover;border-radius:50%;margin-bottom:12px;border:3px solid var(--border)">
+        {% else %}
+        <span class="ritual-emoji">🕉️</span>
+        {% endif %}
+        <h3>{{ r.title }}</h3>
+        {% if r.description %}
+        <p style="font-size:0.8rem;color:var(--text-light);margin-bottom:10px;line-height:1.5">{{ r.description[:80] }}{% if r.description|length > 80 %}…{% endif %}</p>
+        {% endif %}
+        {% if r.min_price %}
+        <div class="ritual-price">From ₹{{ "{:,.0f}".format(r.min_price) }}</div>
+        {% else %}
+        <div style="font-size:0.85rem;color:var(--text-light)">Packages coming soon</div>
+        {% endif %}
+        {% if r.details %}
+        <div style="font-size:0.75rem;color:var(--text-light);margin-top:6px">
+          {{ r.details.mode }} · {{ r.details.duration or '' }}
+          {% if r.details.num_pundits %} · {{ r.details.num_pundits }} Pandit{{ 's' if r.details.num_pundits > 1 }}{% endif %}
+        </div>
+        {% endif %}
+        <a href="{{ url_for('rituals.view_ritual', ritual_id=r.id) }}"
+           class="btn btn-outline btn-sm" style="margin-top:16px">View Details</a>
+      </div>
+      {% endfor %}
+    {% else %}
+      <!-- Placeholder when no rituals exist yet -->
+      {% set placeholders = [
+        ('🏗️', 'Bhoomi Pujan',       'Ritual for new construction & property'),
+        ('🔱', 'MahaMritunjay Mantra','Powerful mantra for health & longevity'),
+        ('☀️', 'Gayatri Mantra Path', 'Sacred Vedic chant for wisdom & light'),
+        ('🪐', 'Mangal Dosh Nivaran','Remedy for astrological Mangal dosha'),
+      ] %}
+      {% for emoji, title, desc in placeholders %}
+      <div class="ritual-card">
+        <span class="ritual-emoji">{{ emoji }}</span>
+        <h3>{{ title }}</h3>
+        <p style="font-size:0.8rem;color:var(--text-light);margin-bottom:10px;line-height:1.5">{{ desc }}</p>
+        <a href="{{ url_for('rituals.new_ritual') }}" class="btn btn-outline btn-sm" style="margin-top:16px">Add Ritual</a>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  {% if rituals and rituals|length > 4 %}
+  <div style="text-align:center;margin-top:24px">
+    <a href="{{ url_for('rituals.ritual_list') }}" class="btn btn-outline">View All {{ rituals|length }} Rituals →</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="container page-content">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:40px">
+    <div class="card" style="text-align:center;padding:32px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">👤</div>
+      <h3 style="font-family:'Playfair Display',serif;color:var(--text-dark);margin-bottom:8px">Register First</h3>
+      <p style="color:var(--text-light);font-size:0.875rem;line-height:1.6;margin-bottom:16px">Register a customer with name &amp; email, then add contact and address.</p>
+      <a href="{{ url_for('customers.new_customer') }}" class="btn btn-outline btn-sm">Register Customer</a>
+    </div>
+    <div class="card" style="text-align:center;padding:32px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">📦</div>
+      <h3 style="font-family:'Playfair Display',serif;color:var(--text-dark);margin-bottom:8px">Pick a Package</h3>
+      <p style="color:var(--text-light);font-size:0.875rem;line-height:1.6;margin-bottom:16px">Choose a ritual, select a package (Silver/Gold/Platinum), pick date &amp; time.</p>
+      <a href="{{ url_for('bookings.new_booking') }}" class="btn btn-outline btn-sm">New Booking</a>
+    </div>
+    <div class="card" style="text-align:center;padding:32px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">🛡️</div>
+      <h3 style="font-family:'Playfair Display',serif;color:var(--text-dark);margin-bottom:8px">Secure Payments</h3>
+      <p style="color:var(--text-light);font-size:0.875rem;line-height:1.6;margin-bottom:16px">20% token upfront, balance on completion. Full refund management built in.</p>
+      <a href="{{ url_for('main.bookings_list') }}" class="btn btn-outline btn-sm">View Bookings</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block title %}Custom Ritual Requests{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>✨ Custom Ritual Requests</h1>
+    <p>Admin-managed custom and multi-ritual booking requests</p>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:24px">
+    <div class="stat-card">
+      <div class="stat-icon orange">✨</div>
+      <div class="stat-info"><div class="stat-value">{{ stats.total }}</div><div class="stat-label">Total Requests</div></div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #F59E0B">
+      <div class="stat-icon" style="background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(245,158,11,.05))">⏳</div>
+      <div class="stat-info"><div class="stat-value" style="color:#B45309">{{ stats.pending }}</div><div class="stat-label">Pending Quote</div></div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #27AE60">
+      <div class="stat-icon green">💰</div>
+      <div class="stat-info"><div class="stat-value" style="color:#27AE60">{{ stats.quoted }}</div><div class="stat-label">Quoted</div></div>
+    </div>
+    <div class="stat-card" style="border-left:4px solid var(--saffron)">
+      <div class="stat-icon orange">📋</div>
+      <div class="stat-info"><div class="stat-value">{{ stats.booked }}</div><div class="stat-label">Booked</div></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar" style="margin-bottom:24px">
+    <form method="GET" action="{{ url_for('custom_rituals.list_requests') }}">
+      <div class="filter-group" style="flex:2;min-width:200px">
+        <label>Search</label>
+        <input type="text" name="search" value="{{ filters.search }}" placeholder="Title, customer name or email…">
+      </div>
+      <div class="filter-group">
+        <label>Anchor Ritual</label>
+        <select name="ritual_id">
+          <option value="">All Rituals</option>
+          {% for r in rituals %}
+          <option value="{{ r.id }}" {% if filters.ritual_id|string == r.id|string %}selected{% endif %}>{{ r.title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Quote Status</label>
+        <select name="status">
+          <option value="">All</option>
+          <option value="pending" {% if filters.status=='pending' %}selected{% endif %}>⏳ Pending</option>
+          <option value="quoted"  {% if filters.status=='quoted'  %}selected{% endif %}>💰 Quoted</option>
+        </select>
+      </div>
+      <div class="filter-group" style="flex-direction:row;gap:8px;align-items:flex-end">
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Filter</button>
+        <a href="{{ url_for('custom_rituals.list_requests') }}" class="btn btn-outline btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2>✨ Custom Requests ({{ requests|length }})</h2>
+      <a href="{{ url_for('custom_rituals.new_request') }}" class="btn btn-primary btn-sm">+ New Request</a>
+    </div>
+
+    {% if requests %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Customer</th>
+            <th>Title</th>
+            <th>Anchor Ritual</th>
+            <th>Components</th>
+            <th>Quoted Price</th>
+            <th>Quote Status</th>
+            <th>Booking</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for crr in requests %}
+          <tr>
+            <td style="font-size:0.8rem;color:var(--text-light)">{{ crr.id }}</td>
+            <td>
+              <div style="font-weight:600;font-size:0.875rem">{{ crr.customer.name }}</div>
+              <div style="font-size:0.72rem;color:var(--text-light)">{{ crr.customer.email }}</div>
+            </td>
+            <td style="font-weight:600;max-width:180px">{{ crr.title }}</td>
+            <td style="font-size:0.82rem">{{ crr.ritual.title if crr.ritual else '—' }}</td>
+            <td style="text-align:center;font-weight:700">{{ crr.component_count }}</td>
+            <td style="font-weight:700;color:var(--saffron)">
+              {% if crr.quoted_price is not none %}₹{{ "{:,.0f}".format(crr.quoted_price) }}{% else %}—{% endif %}
+            </td>
+            <td>
+              {% if crr.is_quoted %}
+              <span class="badge badge-completed">💰 Quoted</span>
+              {% else %}
+              <span class="badge badge-pending">⏳ Pending</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if crr.booking %}
+              <a href="{{ url_for('bookings.view_booking', booking_id=crr.booking.id) }}"
+                 style="font-size:0.8rem;color:var(--saffron);font-weight:600">{{ crr.booking.booking_ref }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-size:0.78rem;color:var(--text-light)">{{ crr.created_at.strftime('%d %b %Y') }}</td>
+            <td>
+              <a href="{{ url_for('custom_rituals.view_request', request_id=crr.id) }}" class="btn btn-outline btn-sm">View</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">✨</div>
+      <h3>No Custom Requests Yet</h3>
+      <p>{% if filters.search or filters.status %}No requests match your filters.{% else %}Create the first custom ritual request.{% endif %}</p>
+      <a href="{{ url_for('custom_rituals.new_request') }}" class="btn btn-primary" style="margin-top:16px">+ New Request</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

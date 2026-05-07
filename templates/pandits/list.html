@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Pandit Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>🧘 Pandit Management</h1>
+    <p>Register, verify and manage all Pandits</p>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px">
+    <div class="stat-card"><div class="stat-icon orange">🧘</div><div class="stat-info"><div class="stat-value">{{ stats.total }}</div><div class="stat-label">Total Pandits</div></div></div>
+    <div class="stat-card" style="border-left:4px solid #27AE60"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value" style="color:#27AE60">{{ stats.verified }}</div><div class="stat-label">Verified</div></div></div>
+    <div class="stat-card" style="border-left:4px solid #F59E0B"><div class="stat-icon" style="background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(245,158,11,.05))">⏳</div><div class="stat-info"><div class="stat-value" style="color:#B45309">{{ stats.pending }}</div><div class="stat-label">Pending</div></div></div>
+    <div class="stat-card" style="border-left:4px solid var(--saffron)"><div class="stat-icon orange">🟢</div><div class="stat-info"><div class="stat-value">{{ stats.active }}</div><div class="stat-label">Active</div></div></div>
+    <div class="stat-card" style="border-left:4px solid #C0392B"><div class="stat-icon red">🔴</div><div class="stat-info"><div class="stat-value" style="color:#C0392B">{{ stats.suspended }}</div><div class="stat-label">Suspended</div></div></div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar" style="margin-bottom:24px">
+    <form method="GET" action="{{ url_for('admin.pandits_list') }}">
+      <div class="filter-group">
+        <label>City</label>
+        <select name="city">
+          <option value="">All Cities</option>
+          {% for c in cities %}<option value="{{ c }}" {% if filters.city==c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Verification</label>
+        <select name="verification_status">
+          <option value="">All</option>
+          {% for s,l in [('PENDING','Pending'),('VERIFIED','Verified'),('REJECTED','Rejected')] %}<option value="{{ s }}" {% if filters.verification_status==s %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Account Status</label>
+        <select name="account_status">
+          <option value="">All</option>
+          {% for s in ['Active','Inactive','Suspended'] %}<option value="{{ s }}" {% if filters.account_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Min Rating</label>
+        <select name="min_rating">
+          <option value="">Any</option>
+          {% for r in ['1','2','3','4','4.5'] %}<option value="{{ r }}" {% if filters.min_rating==r %}selected{% endif %}>{{ r }}+</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group" style="flex-direction:row;gap:8px;align-items:flex-end">
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Filter</button>
+        <a href="{{ url_for('admin.pandits_list') }}" class="btn btn-outline btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2>🧘 Pandits ({{ pandits|length }})</h2>
+      <a href="{{ url_for('admin.new_pandit') }}" class="btn btn-primary btn-sm">+ Add Pandit</a>
+    </div>
+
+    {% if pandits %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Pandit</th>
+            <th>City</th>
+            <th>Ritual Details</th>
+            <th>Rating</th>
+            <th>Bookings</th>
+            <th>Completed</th>
+            <th>Earnings</th>
+            <th>Verification</th>
+            <th>Account</th>
+            <th>Availability</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pandits %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                {% if p.profile_photo %}
+                <img src="{{ url_for('admin.serve_photo', photo_id=p.profile_photo.id) }}"
+                     style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:2px solid var(--border);flex-shrink:0">
+                {% else %}
+                <div class="pandit-avatar">🧘</div>
+                {% endif %}
+                <div>
+                  <div style="font-weight:600">{{ p.name }}</div>
+                  <div style="font-size:0.75rem;color:var(--text-light)">{{ p.mobile }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ p.current_address.city if p.current_address else '—' }}</td>
+            <td style="text-align:center">
+              {% set pd_count = p.puja_details|length %}
+              {% if pd_count > 0 %}
+              <span class="expertise-tag">{{ pd_count }} ritual{{ 's' if pd_count != 1 }}</span>
+              {% else %}
+              <span style="color:#CCC;font-size:0.8rem">None added</span>
+              {% endif %}
+            </td>
+            <td><div class="rating-display"><span class="star-filled">★</span><span style="font-weight:700">{{ "%.1f"|format(p.rating) }}</span></div></td>
+            <td style="text-align:center;font-weight:600">{{ p.bookings|length }}</td>
+            <td style="text-align:center;font-weight:600">{{ p.total_bookings_completed }}</td>
+            <td style="font-weight:700;color:var(--saffron)">₹{{ "{:,.0f}".format(p.total_earnings) }}</td>
+            <td><span class="badge badge-vstatus-{{ p.verification_status.lower() }}">{{ '✅' if p.verification_status=='VERIFIED' else '⏳' if p.verification_status=='PENDING' else '❌' }} {{ p.verification_status }}</span></td>
+            <td><span class="badge badge-astatus-{{ p.account_status.lower() }}">{{ p.account_status }}</span></td>
+            <td>
+              <span class="avail-dot {{ 'avail-yes' if p.is_available and p.account_status=='Active' else 'avail-no' }}"></span>
+              {{ 'Available' if p.is_available and p.account_status=='Active' else 'Unavailable' }}
+            </td>
+            <td><a href="{{ url_for('admin.view_pandit', pandit_id=p.id) }}" class="btn btn-outline btn-sm">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🧘</div>
+      <h3>No Pandits Found</h3>
+      <p>No pandits match your filters.</p>
+      <a href="{{ url_for('admin.new_pandit') }}" class="btn btn-primary" style="margin-top:16px">+ Register First Pandit</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

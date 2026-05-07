@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Payments — {{ booking.booking_ref }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>💰 Payment Management</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('main.index') }}">Home</a><span class="sep">›</span>
+      <a href="{{ url_for('main.bookings_list') }}">Bookings</a><span class="sep">›</span>
+      <a href="{{ url_for('bookings.view_booking', booking_id=booking.id) }}">{{ booking.booking_ref }}</a><span class="sep">›</span>
+      <span>Payments</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Summary bar -->
+  <div style="background:white;border:1px solid var(--border);border-radius:var(--radius);padding:20px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;box-shadow:var(--shadow)">
+    <div><div style="font-size:0.75rem;color:var(--text-light);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Booking</div><div style="font-weight:700;color:var(--maroon)">{{ booking.booking_ref }}</div></div>
+    <div><div style="font-size:0.75rem;color:var(--text-light);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Customer</div><div style="font-weight:600">{{ booking.customer.name }}</div></div>
+    <div><div style="font-size:0.75rem;color:var(--text-light);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ritual</div><div style="font-weight:600">{{ booking.ritual_type }}</div></div>
+    <div><div style="font-size:0.75rem;color:var(--text-light);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Total</div><div style="font-weight:700;color:var(--saffron);font-size:1.1rem">{{ booking.currency }}{{ "{:,.0f}".format(booking.total_amount) }}</div></div>
+    <span class="badge badge-{{ booking.status.lower() }}">{{ booking.status }}</span>
+    <a href="{{ url_for('bookings.view_booking', booking_id=booking.id) }}" class="btn btn-outline btn-sm">← Back</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start">
+
+    <!-- LEFT -->
+    <div>
+      <!-- History -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📜 Payment History</h3></div>
+        {% if booking.payments %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Date</th><th>Type</th><th>Provider</th><th>Txn ID</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for p in booking.payments %}
+              <tr>
+                <td style="color:var(--text-light)">{{ loop.index }}</td>
+                <td>{{ p.created_at.strftime('%d %b %Y') }}<br><span style="font-size:0.75rem;color:var(--text-light)">{{ p.created_at.strftime('%I:%M %p') }}</span></td>
+                <td><span class="badge {% if p.payment_type=='FULL' %}badge-completed{% elif p.payment_type=='TOKEN' %}badge-token{% else %}badge-pending{% endif %}">{{ p.payment_type }}</span></td>
+                <td>{{ p.provider }}</td>
+                <td style="font-size:0.78rem;color:var(--text-light)">{{ p.external_transaction_id or '—' }}</td>
+                <td style="font-weight:700;color:{% if p.amount<0 %}var(--maroon-light){% else %}var(--saffron){% endif %}">{% if p.amount<0 %}−{% endif %}{{ booking.currency }}{{ "{:,.0f}".format(p.amount|abs) }}</td>
+                <td><span class="badge {% if p.status=='CAPTURED' %}badge-completed{% elif p.status=='REFUNDED' %}badge-refunded{% elif p.status=='FAILED' %}badge-cancelled{% else %}badge-pending{% endif %}">{{ p.status }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state"><div class="empty-icon">💳</div><p>No payments recorded yet.</p></div>
+        {% endif %}
+      </div>
+
+      <!-- Add Payment -->
+      {% if booking.status != 'CANCELLED' %}
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>➕ Record Payment</h3></div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('payments.add_payment', booking_id=booking.id) }}">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Payment Type *</label>
+                <select name="payment_type" class="form-control" required id="ptype_sel" onchange="setDefaultAmount(this)">
+                  <option value="">— Select —</option>
+                  {% for pt in payment_types %}<option value="{{ pt }}">{{ pt }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Amount ({{ booking.currency }}) *</label>
+                <input type="number" name="amount" id="payment_amount" class="form-control" min="1" step="0.01" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Payment Provider *</label>
+                <select name="provider" class="form-control" required>
+                  <option value="">— Select —</option>
+                  {% for pr in payment_providers %}<option value="{{ pr }}">{{ pr }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Transaction ID</label>
+                <input type="text" name="transaction_id" class="form-control" placeholder="UTR / Order ID...">
+              </div>
+            </div>
+            <div class="form-group"><label class="form-label">Notes</label><input type="text" name="notes" class="form-control" placeholder="Optional..."></div>
+            <div style="text-align:right"><button type="submit" class="btn btn-primary">💰 Record Payment</button></div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Refund -->
+      {% if booking.total_paid > 0 %}
+      <div class="card">
+        <div class="card-header" style="background:linear-gradient(135deg,#FFF0F0,white)"><h3 style="color:var(--maroon-light)">↩️ Process Refund</h3></div>
+        <div class="card-body">
+          <p style="font-size:0.875rem;color:var(--text-light);margin-bottom:20px">Total paid: <strong style="color:var(--saffron)">{{ booking.currency }}{{ "{:,.0f}".format(booking.total_paid) }}</strong></p>
+          <form method="POST" action="{{ url_for('payments.process_refund', booking_id=booking.id) }}">
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Refund Amount *</label><input type="number" name="refund_amount" class="form-control" min="1" max="{{ booking.total_paid }}" step="0.01" required></div>
+              <div class="form-group">
+                <label class="form-label">Refund Via *</label>
+                <select name="provider" class="form-control" required>
+                  <option value="">— Select —</option>
+                  {% for pr in payment_providers %}<option value="{{ pr }}">{{ pr }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="form-group"><label class="form-label">Reason *</label><textarea name="reason" class="form-control" rows="3" required></textarea></div>
+            <div style="text-align:right"><button type="submit" class="btn btn-danger">↩️ Process Refund</button></div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT -->
+    <div style="position:sticky;top:90px">
+      <div class="card">
+        <div class="card-header"><h3>📊 Summary</h3></div>
+        <div class="card-body">
+          <div class="payment-summary">
+            <div class="payment-row"><span>Total Amount</span><span class="amount">{{ booking.currency }}{{ "{:,.0f}".format(booking.total_amount) }}</span></div>
+            <div class="payment-row"><span style="color:var(--gold)">Token (20%)</span><span class="amount" style="color:var(--gold)">{{ booking.currency }}{{ "{:,.0f}".format(booking.token_amount) }}</span></div>
+            <div class="payment-row"><span style="color:#27AE60">Total Paid</span><span class="amount" style="color:#27AE60">{{ booking.currency }}{{ "{:,.0f}".format(booking.total_paid) }}</span></div>
+            <div class="payment-row"><span style="font-weight:700">Amount Due</span><span class="amount" style="font-size:1.2rem;color:{% if booking.amount_due<=0 %}#27AE60{% else %}var(--saffron){% endif %}">{{ booking.currency }}{{ "{:,.0f}".format(booking.amount_due) }}</span></div>
+          </div>
+          {% set pct = [(booking.total_paid/booking.total_amount*100),100]|min if booking.total_amount>0 else 0 %}
+          <div style="margin-top:16px">
+            <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-light);margin-bottom:6px"><span>Progress</span><span>{{ "%.0f"|format(pct) }}%</span></div>
+            <div style="background:var(--cream-dark);border-radius:20px;height:10px;overflow:hidden"><div style="background:linear-gradient(90deg,var(--saffron),var(--gold));height:100%;width:{{ pct }}%;border-radius:20px"></div></div>
+          </div>
+          <div style="margin-top:16px;padding:12px;background:var(--cream);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);margin-bottom:6px">Payment Status</div>
+            <span class="badge badge-{{ 'paid' if booking.payment_status=='Fully Paid' else 'unpaid' if booking.payment_status=='Unpaid' else 'token' }}" style="font-size:0.875rem;padding:5px 14px">{{ booking.payment_status }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tokenAmt     = {{ booking.token_amount }};
+const remainingAmt = {{ booking.amount_due }};
+const fullAmt      = {{ booking.total_amount }};
+function setDefaultAmount(sel) {
+  const map = { 'TOKEN': Math.round(tokenAmt), 'REMAINING': Math.round(remainingAmt), 'FULL': Math.round(fullAmt) };
+  document.getElementById('payment_amount').value = map[sel.value] !== undefined ? map[sel.value] : '';
+}
+</script>
+{% endblock %}

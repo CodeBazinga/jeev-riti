@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Customers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>👥 Customers</h1>
+    <p>Registered customer profiles</p>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
+    <div class="stat-card"><div class="stat-icon orange">👥</div><div class="stat-info"><div class="stat-value">{{ stats.total }}</div><div class="stat-label">Total Customers</div></div></div>
+    <div class="stat-card" style="border-left:4px solid var(--gold)"><div class="stat-icon gold">📍</div><div class="stat-info"><div class="stat-value">{{ stats.with_address }}</div><div class="stat-label">With Address</div></div></div>
+    <div class="stat-card" style="border-left:4px solid #27AE60"><div class="stat-icon green">📋</div><div class="stat-info"><div class="stat-value">{{ stats.with_bookings }}</div><div class="stat-label">Have Bookings</div></div></div>
+  </div>
+
+  <!-- Search -->
+  <div class="filter-bar" style="margin-bottom:24px">
+    <form method="GET" action="{{ url_for('customers.customer_list') }}">
+      <div class="filter-group" style="flex:2;min-width:220px">
+        <label>Search</label>
+        <input type="text" name="search" value="{{ filters.search }}"
+               placeholder="Name, email or contact number...">
+      </div>
+      <div class="filter-group" style="flex-direction:row;gap:8px;align-items:flex-end">
+        <button type="submit" class="btn btn-primary btn-sm">🔍 Search</button>
+        <a href="{{ url_for('customers.customer_list') }}" class="btn btn-outline btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2>👤 Customers ({{ customers|length }})</h2>
+      <a href="{{ url_for('customers.new_customer') }}" class="btn btn-primary btn-sm">+ Register Customer</a>
+    </div>
+
+    {% if customers %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Contact Number</th><th>Addresses</th><th>Bookings</th><th>Registered</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          {% for c in customers %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:38px;height:38px;background:linear-gradient(135deg,var(--saffron),var(--gold));border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">{{ c.name[0].upper() }}</div>
+                <div><div style="font-weight:600">{{ c.name }}</div><div style="font-size:0.75rem;color:var(--text-light)">{{ c.email }}</div></div>
+              </div>
+            </td>
+            <td>{{ c.contact_number or '—' }}</td>
+            <td style="text-align:center;font-weight:600">{{ c.addresses|length }}</td>
+            <td style="text-align:center;font-weight:600">{{ c.bookings|length }}</td>
+            <td style="font-size:0.8rem;color:var(--text-light)">{{ c.created_at.strftime('%d %b %Y') }}</td>
+            <td>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <a href="{{ url_for('customers.view_customer', customer_id=c.id) }}" class="btn btn-outline btn-sm">View</a>
+                <a href="{{ url_for('bookings.new_booking') }}?customer_id={{ c.id }}" class="btn btn-primary btn-sm">+ Book</a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">👥</div>
+      <h3>No Customers Found</h3>
+      <p>{% if filters.search %}No customers match your search.{% else %}Register the first customer.{% endif %}</p>
+      <a href="{{ url_for('customers.new_customer') }}" class="btn btn-primary" style="margin-top:16px">+ Register Customer</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

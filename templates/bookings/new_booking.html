@@ -1,0 +1,516 @@
+{% extends 'base.html' %}
+{% block title %}New Booking{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>🙏 New Booking</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('main.index') }}">Home</a><span class="sep">›</span>
+      <a href="{{ url_for('main.bookings_list') }}">Bookings</a><span class="sep">›</span>
+      <span>New</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+  <div style="max-width:860px;margin:0 auto">
+    <form method="POST" action="{{ url_for('bookings.new_booking') }}" id="bookingForm">
+
+      <!-- Hidden booking type — updated by JS when custom ritual is selected -->
+      <input type="hidden" name="booking_type" id="booking_type_field" value="standard">
+      <input type="hidden" name="custom_ritual_request_id" id="custom_ritual_request_id_field" value="">
+
+      <!-- ═══════════════════════════════════════════════════════
+           STEP 1 — Customer
+      ════════════════════════════════════════════════════════ -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>👤 Step 1 — Find Customer</h3>
+          <a href="{{ url_for('customers.new_customer') }}" class="btn btn-outline btn-sm">+ Register New</a>
+        </div>
+        <div class="card-body">
+          <!-- Email / Mobile toggle -->
+          <div style="display:flex;gap:0;margin-bottom:18px;border:2px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;width:fit-content">
+            <button type="button" id="tab_email"  onclick="switchTab('email')"
+                    style="padding:8px 22px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:var(--saffron);color:white">✉️ Email</button>
+            <button type="button" id="tab_mobile" onclick="switchTab('mobile')"
+                    style="padding:8px 22px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:white;color:var(--text-medium)">📱 Mobile</button>
+          </div>
+
+          <div id="search_email_row" style="display:flex;gap:12px;align-items:flex-end;margin-bottom:20px">
+            <div style="flex:1"><label class="form-label">Customer Email</label>
+              <input type="email" id="email_input" class="form-control"
+                     placeholder="Enter email..." value="{{ prefill_email or '' }}" autocomplete="off"></div>
+            <button type="button" class="btn btn-primary" onclick="doLookup()">🔍 Search</button>
+          </div>
+          <div id="search_mobile_row" style="display:none;gap:12px;align-items:flex-end;margin-bottom:20px">
+            <div style="flex:1"><label class="form-label">Contact Number</label>
+              <input type="tel" id="mobile_input" class="form-control" placeholder="Enter mobile..." autocomplete="off" maxlength="15"></div>
+            <button type="button" class="btn btn-primary" onclick="doLookup()">🔍 Search</button>
+          </div>
+
+          <input type="hidden" name="customer_id" id="customer_id_field">
+
+          <!-- Customer found -->
+          <div id="customer_found_card" style="display:none;border:2px solid var(--saffron);border-radius:var(--radius-sm);padding:18px;background:linear-gradient(135deg,#FFF8F0,white)">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+              <div id="cust_avatar" style="width:50px;height:50px;background:linear-gradient(135deg,var(--saffron),var(--gold));border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.2rem;flex-shrink:0"></div>
+              <div>
+                <div id="cust_name" style="font-weight:700;font-size:1rem"></div>
+                <div id="cust_email" style="font-size:0.82rem;color:var(--text-light)"></div>
+                <div id="cust_mobile" style="font-size:0.82rem;color:var(--text-medium)"></div>
+              </div>
+              <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <span style="background:#D1FAE5;color:#065F46;padding:4px 12px;border-radius:20px;font-size:0.78rem;font-weight:600">✅ Found</span>
+                <button type="button" onclick="clearCustomer()" style="font-size:0.75rem;color:var(--text-light);background:none;border:none;cursor:pointer;text-decoration:underline">Search again</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Not found -->
+          <div id="customer_not_found" style="display:none;border:2px dashed #FECACA;border-radius:var(--radius-sm);padding:24px;text-align:center;background:#FFF5F5">
+            <div style="font-size:2rem;margin-bottom:8px">🔍</div>
+            <div style="font-weight:700;color:#991B1B;margin-bottom:6px">No customer found</div>
+            <div id="not_found_detail" style="font-size:0.875rem;color:#C0392B;margin-bottom:16px"></div>
+            <a href="{{ url_for('customers.new_customer') }}" class="btn btn-primary btn-sm">+ Register Customer</a>
+          </div>
+          <div id="lookup_loading" style="display:none;text-align:center;padding:20px;color:var(--text-light)">
+            <div style="font-size:1.5rem;margin-bottom:6px">⏳</div>Searching...
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           STEP 2 — Address
+      ════════════════════════════════════════════════════════ -->
+      <div class="card" id="address_section" style="margin-bottom:24px;display:none">
+        <div class="card-header"><h3>📍 Step 2 — Select Ritual Address</h3></div>
+        <div class="card-body">
+          <p style="font-size:0.875rem;color:var(--text-light);margin-bottom:16px">Select the address where the Pandit should perform the ritual.</p>
+          <div id="addresses_grid" style="display:grid;gap:12px"></div>
+          <input type="hidden" name="address_id" id="address_id_field">
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           STEP 3 — Ritual / Package OR Custom Ritual Request
+      ════════════════════════════════════════════════════════ -->
+      <div class="card" id="ritual_section" style="margin-bottom:24px;display:none">
+        <div class="card-header"><h3>🕉️ Step 3 — Select Ritual</h3></div>
+        <div class="card-body">
+
+          <!-- Sub-tab toggle: Standard vs Custom -->
+          <div id="booking_type_tabs" style="display:flex;gap:0;margin-bottom:20px;border:2px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;width:fit-content">
+            <button type="button" id="tab_standard" onclick="switchBookingType('standard')"
+                    style="padding:9px 24px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:var(--saffron);color:white">
+              🕉️ Standard Ritual
+            </button>
+            <button type="button" id="tab_custom" onclick="switchBookingType('custom')"
+                    style="padding:9px 24px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:white;color:var(--text-medium)">
+              ✨ Custom Ritual
+            </button>
+          </div>
+
+          <!-- ── STANDARD ritual panel ─────────────────────────────────── -->
+          <div id="standard_panel">
+            <div class="form-group">
+              <label class="form-label">Ritual *</label>
+              <select id="ritual_select" class="form-control" onchange="loadPackages(this.value)">
+                <option value="">— Select Ritual —</option>
+                {% for r in rituals %}<option value="{{ r.id }}">{{ r.title }}</option>{% endfor %}
+              </select>
+            </div>
+            <div id="no_packages_msg" style="display:none;background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:14px;font-size:0.875rem;color:#92400E;margin-bottom:16px">
+              ⚠️ No packages for this ritual. <a href="{{ url_for('rituals.ritual_list') }}" style="color:var(--saffron)">Add packages →</a>
+            </div>
+            <div id="packages_section" style="display:none;margin-bottom:20px">
+              <label class="form-label">Package *</label>
+              <div id="packages_grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div>
+              <input type="hidden" name="ritual_package_id" id="ritual_package_id_field">
+            </div>
+          </div>
+
+          <!-- ── CUSTOM ritual panel ───────────────────────────────────── -->
+          <div id="custom_panel" style="display:none">
+            <div id="custom_loading" style="display:none;text-align:center;padding:20px;color:var(--text-light)">
+              <div style="font-size:1.5rem;margin-bottom:6px">⏳</div>Loading custom requests...
+            </div>
+            <div id="custom_none" style="display:none;border:2px dashed var(--border);border-radius:8px;padding:28px;text-align:center">
+              <div style="font-size:2rem;margin-bottom:8px">✨</div>
+              <div style="font-weight:700;color:var(--text-dark);margin-bottom:6px">No quoted custom requests</div>
+              <div style="font-size:0.85rem;color:var(--text-light);margin-bottom:16px">
+                This customer has no pending custom ritual requests with a quote yet.
+              </div>
+              <a href="{{ url_for('custom_rituals.new_request') }}"
+                 class="btn btn-primary btn-sm">+ Create Custom Request</a>
+            </div>
+            <div id="custom_list" style="display:grid;gap:14px"></div>
+          </div>
+
+          <!-- ── Shared: date / time / source / notes ──────────────────── -->
+          <div id="datetime_section" style="display:none;margin-top:16px">
+            <div class="form-grid">
+              <div class="form-group"><label class="form-label">Preferred Date *</label><input type="date" name="booking_date" id="booking_date" class="form-control" required></div>
+              <div class="form-group"><label class="form-label">Preferred Time *</label><input type="time" name="booking_time" id="booking_time" class="form-control" required></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Booking Source</label>
+              <select name="booking_source" class="form-control">
+                {% for src in booking_sources %}<option value="{{ src }}">{{ src }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Notes <span style="font-weight:400;color:var(--text-light)">(optional)</span></label><textarea name="notes" class="form-control" rows="2" placeholder="Any special requirements..."></textarea></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div id="submit_section" style="display:none;justify-content:flex-end;gap:16px">
+        <a href="{{ url_for('main.bookings_list') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" style="padding:13px 40px;font-size:1rem">🙏 Confirm Booking</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let activeTab      = 'email';
+let activeBookType = 'standard';
+let currentCustId  = null;
+
+/* ─── Search tab toggle ──────────────────────────────────────────────── */
+function switchTab(tab) {
+  activeTab = tab;
+  const isEmail = (tab === 'email');
+  document.getElementById('search_email_row').style.display  = isEmail ? 'flex' : 'none';
+  document.getElementById('search_mobile_row').style.display = isEmail ? 'none' : 'flex';
+  document.getElementById('tab_email').style.cssText  = `padding:8px 22px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:${isEmail?'var(--saffron)':'white'};color:${isEmail?'white':'var(--text-medium)'}`;
+  document.getElementById('tab_mobile').style.cssText = `padding:8px 22px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:${isEmail?'white':'var(--saffron)'};color:${isEmail?'var(--text-medium)':'white'}`;
+  hideResults();
+}
+
+/* ─── Booking type toggle (standard / custom) ────────────────────────── */
+function switchBookingType(type) {
+  activeBookType = type;
+  const isStd = (type === 'standard');
+
+  document.getElementById('tab_standard').style.cssText = `padding:9px 24px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:${isStd?'var(--saffron)':'white'};color:${isStd?'white':'var(--text-medium)'}`;
+  document.getElementById('tab_custom').style.cssText   = `padding:9px 24px;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;background:${isStd?'white':'var(--saffron)'};color:${isStd?'var(--text-medium)':'white'}`;
+
+  document.getElementById('standard_panel').style.display = isStd ? 'block' : 'none';
+  document.getElementById('custom_panel').style.display   = isStd ? 'none'  : 'block';
+
+  // Reset submit/datetime when switching type
+  document.getElementById('datetime_section').style.display = 'none';
+  document.getElementById('submit_section').style.display   = 'none';
+  document.getElementById('booking_type_field').value       = type;
+  document.getElementById('custom_ritual_request_id_field').value = '';
+  document.getElementById('ritual_package_id_field').value  = '';
+
+  if (!isStd && currentCustId) {
+    loadCustomRituals(currentCustId);
+  }
+}
+
+/* ─── Customer lookup ────────────────────────────────────────────────── */
+async function doLookup() {
+  let qs = '', hint = '';
+  if (activeTab === 'email') {
+    const v = document.getElementById('email_input').value.trim();
+    if (!v) { alert('Enter email'); return; }
+    qs = `email=${encodeURIComponent(v)}`; hint = `email "${v}"`;
+  } else {
+    const v = document.getElementById('mobile_input').value.trim().replace(/\D/g,'');
+    if (!v) { alert('Enter mobile number'); return; }
+    qs = `mobile=${encodeURIComponent(v)}`; hint = `mobile "${v}"`;
+  }
+  hideResults();
+  document.getElementById('lookup_loading').style.display = 'block';
+  try {
+    const data = await (await fetch(`/customers/lookup?${qs}`)).json();
+    document.getElementById('lookup_loading').style.display = 'none';
+    if (data.found) { showCustomer(data); }
+    else {
+      document.getElementById('not_found_detail').textContent = `No customer with ${hint}`;
+      document.getElementById('customer_not_found').style.display = 'block';
+    }
+  } catch(e) { document.getElementById('lookup_loading').style.display='none'; alert('Error'); }
+}
+
+function hideResults() {
+  ['customer_found_card','customer_not_found','lookup_loading'].forEach(id=>document.getElementById(id).style.display='none');
+}
+
+function clearCustomer() {
+  hideResults(); hideSteps();
+  currentCustId = null;
+  document.getElementById('customer_id_field').value = '';
+  document.getElementById(activeTab==='email'?'email_input':'mobile_input').value = '';
+}
+
+function hideSteps() {
+  ['address_section','ritual_section'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('submit_section').style.display   = 'none';
+  document.getElementById('datetime_section').style.display = 'none';
+  document.getElementById('ritual_package_id_field').value  = '';
+  document.getElementById('custom_ritual_request_id_field').value = '';
+  document.getElementById('booking_type_field').value = 'standard';
+}
+
+function showCustomer(data) {
+  currentCustId = data.id;
+  document.getElementById('customer_id_field').value = data.id;
+  document.getElementById('cust_avatar').textContent  = data.name[0].toUpperCase();
+  document.getElementById('cust_name').textContent    = data.name;
+  document.getElementById('cust_email').textContent   = '✉️ ' + data.email;
+  document.getElementById('cust_mobile').textContent  = data.mobile ? '📱 ' + data.mobile : '';
+  document.getElementById('customer_found_card').style.display = 'block';
+  buildAddresses(data.addresses, data.id);
+  document.getElementById('address_section').style.display = 'block';
+}
+
+/* ─── Address grid ───────────────────────────────────────────────────── */
+function buildAddresses(addresses, custId) {
+  const grid = document.getElementById('addresses_grid');
+  grid.innerHTML = '';
+  if (!addresses || addresses.length === 0) {
+    grid.innerHTML = `<div style="text-align:center;padding:24px;border:2px dashed var(--border);border-radius:8px;color:var(--text-light)">
+      <div style="font-size:1.5rem;margin-bottom:8px">📍</div>
+      <p style="margin-bottom:12px">No saved addresses.</p>
+      <a href="/customers/${custId}" class="btn btn-outline btn-sm">Add Address →</a>
+    </div>`;
+    return;
+  }
+  document.getElementById('address_id_field').value = addresses[0].id;
+  addresses.forEach((addr, i) => {
+    const sel = (i === 0);
+    const div = document.createElement('div');
+    div.className = 'addr-card' + (sel ? ' selected' : '');
+    div.dataset.id = addr.id;
+    div.innerHTML = `<div style="display:flex;align-items:flex-start;gap:12px">
+      <div class="sel-dot" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--saffron);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;background:${sel?'var(--saffron)':'white'}">
+        ${sel?'<span style="color:white;font-size:10px">✓</span>':''}
+      </div>
+      <div><div style="font-weight:700;font-size:0.875rem">${addr.reference_name}</div>
+      <div style="font-size:0.78rem;color:#666;margin-top:2px">${addr.full_address}</div></div>
+    </div>`;
+    div.addEventListener('click', () => selectAddress(addr.id));
+    grid.appendChild(div);
+  });
+  document.getElementById('ritual_section').style.display = 'block';
+  document.getElementById('booking_date').min = new Date().toISOString().split('T')[0];
+}
+
+function selectAddress(id) {
+  document.getElementById('address_id_field').value = id;
+  document.querySelectorAll('.addr-card').forEach(card => {
+    const sel = (parseInt(card.dataset.id) === id);
+    card.classList.toggle('selected', sel);
+    const dot = card.querySelector('.sel-dot');
+    dot.style.background = sel ? 'var(--saffron)' : 'white';
+    dot.innerHTML = sel ? '<span style="color:white;font-size:10px">✓</span>' : '';
+  });
+}
+
+/* ─── Standard packages ──────────────────────────────────────────────── */
+async function loadPackages(ritualId) {
+  ['packages_section','no_packages_msg','datetime_section'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('submit_section').style.display = 'none';
+  document.getElementById('ritual_package_id_field').value = '';
+  if (!ritualId) return;
+  const data = await (await fetch(`/rituals/api/packages/${ritualId}`)).json();
+  if (!data.packages || data.packages.length === 0) {
+    document.getElementById('no_packages_msg').style.display = 'block'; return;
+  }
+  buildPackages(data.packages);
+  document.getElementById('packages_section').style.display = 'block';
+}
+
+function buildPackages(packages) {
+  const grid = document.getElementById('packages_grid');
+  grid.innerHTML = '';
+  packages.forEach((pkg, i) => {
+    const sel    = (i === 0);
+    const isPrem = pkg.package_type === 'COMPLETE';
+    const div    = document.createElement('div');
+    div.className = 'pkg-card' + (sel ? ' selected' : '');
+    div.dataset.id = pkg.id;
+    div.innerHTML = `
+      <div style="border-radius:6px 6px 0 0;padding:14px 16px;background:${isPrem?'linear-gradient(135deg,var(--maroon),#7A1515)':'linear-gradient(135deg,#5C6BC0,#3949AB)'};display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div><div style="font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;color:white">${pkg.package_type}</div>${pkg.description?`<div style="font-size:0.72rem;color:rgba(255,255,255,0.7)">${pkg.description}</div>`:''}</div>
+        <div style="text-align:right"><div style="font-weight:800;font-size:1.1rem;color:${isPrem?'var(--gold-light)':'#E8EAF6'}">₹${pkg.price.toLocaleString('en-IN')}</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.6)">Token: ₹${pkg.token_amount.toLocaleString('en-IN')}</div></div>
+      </div>
+      <div style="padding:12px 16px;background:white;min-height:60px">
+        ${pkg.included.length>0?`<div style="font-size:0.75rem;color:#27AE60">✅ ${pkg.included.join(' · ')}</div>`:''}
+      </div>
+      <div class="pkg-sel-bar" style="height:3px;background:${sel?'var(--saffron)':'transparent'};border-radius:0 0 4px 4px"></div>`;
+    div.addEventListener('click', () => {
+      document.getElementById('ritual_package_id_field').value  = pkg.id;
+      document.getElementById('booking_type_field').value = 'standard';
+      document.getElementById('custom_ritual_request_id_field').value = '';
+      document.querySelectorAll('.pkg-card').forEach(c => {
+        const s2 = (parseInt(c.dataset.id) === pkg.id);
+        c.classList.toggle('selected', s2);
+        const bar = c.querySelector('.pkg-sel-bar');
+        if (bar) bar.style.background = s2 ? 'var(--saffron)' : 'transparent';
+      });
+    });
+    grid.appendChild(div);
+  });
+  if (packages.length > 0) {
+    document.getElementById('ritual_package_id_field').value  = packages[0].id;
+    document.getElementById('datetime_section').style.display = 'block';
+    document.getElementById('submit_section').style.display   = 'flex';
+  }
+}
+
+/* ─── Custom ritual requests ─────────────────────────────────────────── */
+async function loadCustomRituals(custId) {
+  document.getElementById('custom_list').innerHTML  = '';
+  document.getElementById('custom_none').style.display    = 'none';
+  document.getElementById('custom_loading').style.display = 'block';
+  try {
+    const data = await (await fetch(`/bookings/api/customer-custom-rituals/${custId}`)).json();
+    document.getElementById('custom_loading').style.display = 'none';
+    if (!data.custom_rituals || data.custom_rituals.length === 0) {
+      document.getElementById('custom_none').style.display = 'block';
+      return;
+    }
+    buildCustomRituals(data.custom_rituals);
+  } catch(e) {
+    document.getElementById('custom_loading').style.display = 'none';
+    document.getElementById('custom_none').style.display    = 'block';
+  }
+}
+
+function buildCustomRituals(rituals) {
+  const list = document.getElementById('custom_list');
+  list.innerHTML = '';
+  rituals.forEach((crr, i) => {
+    const sel = (i === 0);
+    const div = document.createElement('div');
+    div.className = 'custom-crr-card' + (sel ? ' selected' : '');
+    div.dataset.id = crr.id;
+
+    // Build components preview
+    const compPreview = (crr.components || []).slice(0, 3)
+      .map((c, idx) => `<span style="font-size:0.75rem;color:var(--text-medium);background:var(--cream);border:1px solid var(--border);border-radius:20px;padding:2px 10px">${c.name}</span>`)
+      .join(' ');
+    const compMore = crr.component_count > 3
+      ? `<span style="font-size:0.72rem;color:var(--text-light)">+${crr.component_count - 3} more</span>` : '';
+
+    // Build breakdown preview
+    let breakdownHtml = '';
+    if (crr.quoted_breakdown && Object.keys(crr.quoted_breakdown).length > 0) {
+      breakdownHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+        Object.entries(crr.quoted_breakdown).map(([k,v]) =>
+          `<span style="font-size:0.72rem;color:#065F46;background:#D1FAE5;border-radius:20px;padding:2px 8px">${k.replace('_',' ')}: ₹${Number(v).toLocaleString('en-IN')}</span>`
+        ).join('') + '</div>';
+    }
+
+    div.innerHTML = `
+      <div style="border-radius:8px 8px 0 0;padding:16px 20px;background:linear-gradient(135deg,#1D6A5E,#0F6E56);display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="flex:1">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:white;margin-bottom:3px">✨ ${crr.title}</div>
+          ${crr.description ? `<div style="font-size:0.75rem;color:rgba(255,255,255,0.75)">${crr.description}</div>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:800;font-size:1.2rem;color:#9FE1CB">₹${crr.quoted_price.toLocaleString('en-IN')}</div>
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.6)">Token: ₹${crr.token_amount.toLocaleString('en-IN')}</div>
+        </div>
+      </div>
+      <div style="padding:14px 20px;background:white">
+        ${crr.component_count > 0 ? `<div style="margin-bottom:8px"><span class="detail-label" style="font-size:0.72rem">Components:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:4px">${compPreview} ${compMore}</span></div>` : ''}
+        ${breakdownHtml}
+        ${crr.quote_notes ? `<div style="font-size:0.78rem;color:var(--text-light);margin-top:6px;font-style:italic">${crr.quote_notes}</div>` : ''}
+      </div>
+      <div class="crr-sel-bar" style="height:3px;background:${sel?'#1D9E75':'transparent'};border-radius:0 0 4px 4px"></div>`;
+
+    div.addEventListener('click', () => selectCustomRitual(crr.id));
+    list.appendChild(div);
+  });
+
+  // Auto-select first
+  if (rituals.length > 0) {
+    selectCustomRitual(rituals[0].id);
+  }
+}
+
+function selectCustomRitual(id) {
+  document.getElementById('custom_ritual_request_id_field').value = id;
+  document.getElementById('booking_type_field').value             = 'custom';
+  document.getElementById('ritual_package_id_field').value        = '';
+
+  document.querySelectorAll('.custom-crr-card').forEach(card => {
+    const sel = (parseInt(card.dataset.id) === id);
+    card.classList.toggle('selected', sel);
+    const bar = card.querySelector('.crr-sel-bar');
+    if (bar) bar.style.background = sel ? '#1D9E75' : 'transparent';
+  });
+
+  document.getElementById('datetime_section').style.display = 'block';
+  document.getElementById('submit_section').style.display   = 'flex';
+}
+
+/* ─── Standard package loading helpers ──────────────────────────────── */
+// (already defined above)
+
+/* ─── Keyboard shortcuts ─────────────────────────────────────────────── */
+document.getElementById('email_input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
+});
+document.getElementById('mobile_input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
+});
+document.getElementById('mobile_input').addEventListener('input', function() {
+  this.value = this.value.replace(/[^\d\s+\-]/g, '');
+});
+
+/* ─── Auto-load on page ready (when customer_id in URL) ─────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  const cid = new URLSearchParams(window.location.search).get('customer_id');
+  if (cid) {
+    (async () => {
+      const data = await (await fetch(`/customers/lookup-by-id?id=${cid}`)).json();
+      if (data.found) {
+        document.getElementById('email_input').value = data.email;
+        showCustomer(data);
+      }
+    })();
+  } else if (document.getElementById('email_input').value) {
+    doLookup();
+  }
+});
+</script>
+
+<style>
+/* Address cards */
+.addr-card {
+  border:2px solid var(--border);border-radius:var(--radius-sm);
+  padding:14px 18px;cursor:pointer;background:white;transition:all 0.2s;
+}
+.addr-card:hover   { border-color:var(--saffron);background:#FFF8F0; }
+.addr-card.selected{ border-color:var(--saffron);background:linear-gradient(135deg,#FFF8F0,white); }
+
+/* Standard package cards */
+.pkg-card {
+  border:2px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;background:white;overflow:hidden;transition:all 0.2s;
+}
+.pkg-card:hover    { border-color:var(--saffron); }
+.pkg-card.selected { border-color:var(--saffron); }
+
+/* Custom ritual request cards */
+.custom-crr-card {
+  border:2px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;background:white;overflow:hidden;transition:all 0.2s;
+}
+.custom-crr-card:hover    { border-color:#1D9E75; }
+.custom-crr-card.selected { border-color:#1D9E75;box-shadow:0 0 0 2px rgba(29,158,117,0.15); }
+</style>
+{% endblock %}

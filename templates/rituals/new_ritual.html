@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Add New Ritual{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>🕉️ Add New Ritual</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('rituals.ritual_list') }}">Rituals</a><span class="sep">›</span><span>New</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+  <div style="max-width:900px;margin:0 auto">
+    <form method="POST" action="{{ url_for('rituals.new_ritual') }}" enctype="multipart/form-data">
+
+      <!-- Basic Info -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📋 Basic Information</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Ritual Title *</label>
+            <input type="text" name="title" class="form-control" placeholder="e.g. Bhoomi Poojan" required autofocus>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Short description visible to customers..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared Puja Information (same for all detail variants) -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>📖 Shared Puja Information</h3>
+          <span style="font-size:0.8rem;color:var(--text-light);font-weight:400">Common across all detail variants of this ritual</span>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Puja Vidhi (Procedure)</label>
+            <textarea name="puja_vidhi" class="form-control" rows="5"
+                      placeholder="Step-by-step procedure..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Puja Samagri <span style="font-weight:400;color:var(--text-light)">(one item per line)</span></label>
+            <textarea name="puja_samagri" class="form-control" rows="4"
+                      placeholder="Flowers&#10;Camphor&#10;Ghee&#10;..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- First Ritual Detail -->
+      <div class="card" style="margin-bottom:24px;border:2px solid var(--saffron)">
+        <div class="card-header" style="background:linear-gradient(135deg,#FFF8F0,white)">
+          <h3>📖 Ritual Detail <span style="background:var(--saffron);color:white;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;margin-left:8px">Variant 1</span></h3>
+          <span style="font-size:0.8rem;color:var(--text-light)">More variants can be added after creation</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select name="mode" class="form-control">
+                {% for m in ritual_modes %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Duration</label><input type="text" name="duration" class="form-control" placeholder="e.g. 2–3 hours"></div>
+            <div class="form-group"><label class="form-label">Number of Pandits</label><input type="number" name="num_pundits" class="form-control" min="1" value="1"></div>
+            <div class="form-group"><label class="form-label">Best Seasons / Occasions</label><input type="text" name="puja_seasons" class="form-control" placeholder="e.g. Navratri, Any Muhurat"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              Ritual Metadata
+              <span style="font-weight:400;color:var(--text-light);font-size:0.8rem">(JSON dict — e.g. {"num_of_jaap": 21000})</span>
+            </label>
+            <textarea name="ritual_metadata" class="form-control" rows="2"
+                      placeholder='{"num_of_jaap": 21000}'></textarea>
+            <p style="font-size:0.76rem;color:var(--text-light);margin-top:4px">
+              Enter a valid JSON object. This becomes the variant identifier for this detail.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Packages for the first detail -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <h3>📦 Packages for Variant 1</h3>
+          <span style="font-size:0.8rem;color:var(--text-light);font-weight:400">Each detail has exactly Standard + Complete</span>
+        </div>
+        <div class="card-body" style="padding:16px;display:grid;gap:20px">
+          {% include 'rituals/_package_fields.html' %}
+        </div>
+      </div>
+
+      <!-- Images -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>🖼️ Images</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Upload Images (PNG, JPG, WEBP)</label>
+            <input type="file" name="images" class="form-control" accept="image/*" multiple>
+            <p style="font-size:0.78rem;color:var(--text-light);margin-top:6px">First image is the primary display image.</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:16px;justify-content:flex-end">
+        <a href="{{ url_for('rituals.ritual_list') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary" style="padding:12px 36px">🕉️ Create Ritual</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

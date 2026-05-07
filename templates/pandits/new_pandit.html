@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Register New Pandit{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>🧘 Register New Pandit</h1>
+    <div class="breadcrumb">
+      <a href="{{ url_for('admin.pandits_list') }}">Pandits</a><span class="sep">›</span><span>New</span>
+    </div>
+  </div>
+</div>
+
+<div class="container page-content" style="padding-top:0">
+  <div style="max-width:820px;margin:0 auto">
+    <form method="POST" action="{{ url_for('admin.new_pandit') }}" enctype="multipart/form-data">
+
+      <!-- Basic Info -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>👤 Basic Information</h3></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Full Name *</label><input type="text" name="name" class="form-control" required autofocus></div>
+            <div class="form-group"><label class="form-label">Mobile *</label><input type="tel" name="mobile" class="form-control" required></div>
+            <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
+            <div class="form-group"><label class="form-label">Experience (Years)</label><input type="number" name="experience_yrs" class="form-control" min="0" max="60"></div>
+            <div class="form-group"><label class="form-label">Languages</label><input type="text" name="languages" class="form-control" placeholder="Hindi, Sanskrit, Telugu..."></div>
+          </div>
+          <p style="font-size:0.82rem;color:var(--text-light);margin-top:8px">
+            💡 Ritual specializations and fees can be configured after registration from the Pandit profile page.
+          </p>
+        </div>
+      </div>
+
+      <!-- Profile Photo -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📸 Profile Photo <span style="font-weight:400;font-size:0.8rem;color:var(--text-light)">(optional)</span></h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Upload Profile Photo (PNG, JPG, WEBP)</label>
+            <input type="file" name="profile_photo" class="form-control" accept="image/*">
+          </div>
+        </div>
+      </div>
+
+      <!-- Address -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header"><h3>📍 Address <span style="font-weight:400;font-size:0.8rem;color:var(--text-light)">(optional — can be added later)</span></h3></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Address Type</label>
+              <select name="address_type" class="form-control">
+                {% for at in address_types %}<option value="{{ at }}">{{ at }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Label / Reference</label><input type="text" name="reference_name" class="form-control" placeholder='e.g. "Home", "Temple"'></div>
+          </div>
+          <div class="form-group"><label class="form-label">Street / House No.</label><textarea name="street" class="form-control" rows="2" placeholder="House No., Street, Area..."></textarea></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">City</label><input type="text" name="city" class="form-control"></div>
+            <div class="form-group"><label class="form-label">State</label><input type="text" name="state" class="form-control"></div>
+            <div class="form-group"><label class="form-label">PIN / ZIP Code</label><input type="text" name="zip_code" class="form-control"></div>
+            <div class="form-group"><label class="form-label">Country</label><input type="text" name="country" class="form-control" value="India"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:16px;justify-content:flex-end">
+        <a href="{{ url_for('admin.pandits_list') }}" class="btn btn-outline">Cancel</a>
+        <button type="submit" class="btn btn-primary">➕ Register Pandit</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
