@@ -51,7 +51,7 @@
       </div>
 
       <!-- ══ SHARED RITUAL INFO (puja_vidhi & puja_samagri — same across all details) ══ -->
-      {% set first_detail = ritual.details if ritual.details else none %}
+       {% set first_detail = ritual.details[0] if ritual.details else none %}
       {% if first_detail and (first_detail.puja_vidhi or first_detail.puja_samagri) %}
       <div class="card" style="margin-bottom:24px">
         <div class="card-header">
@@ -73,7 +73,14 @@
               <div class="detail-label" style="margin-bottom:8px">Puja Samagri (Items)</div>
               <div style="font-size:0.875rem;color:var(--text-medium);line-height:1.7">
                 {% if first_detail.puja_samagri is iterable and first_detail.puja_samagri is not string %}
-                  {% for item in first_detail.puja_samagri %}{{ item.get('item','') if item is mapping else item }}{% if not loop.last %}, {% endif %}{% endfor %}
+                  <ul style="margin:0;padding-left:18px">
+                  {% for item in first_detail.puja_samagri %}
+                    <li style="margin-bottom:2px">
+                      {{ item.get('item','') if item is mapping else item }}
+                      {% if item is mapping and item.get('qty') %}<span style="color:var(--text-light)"> — {{ item.qty }}</span>{% endif %}
+                    </li>
+                  {% endfor %}
+                  </ul>
                 {% else %}{{ first_detail.puja_samagri }}{% endif %}
               </div>
             </div>
@@ -289,12 +296,34 @@
 
 <!-- Edit Ritual Info -->
 <div id="editRitualModal" class="modal-overlay">
-  <div class="modal">
+  <div class="modal" style="max-width:720px">
     <div class="modal-header"><h3>✏️ Edit Ritual</h3><button class="modal-close" onclick="closeModal('editRitualModal')">×</button></div>
     <form method="POST" action="{{ url_for('rituals.update_ritual', ritual_id=ritual.id) }}">
       <div class="modal-body">
+        {# ── Basic info ── #}
         <div class="form-group"><label class="form-label">Title *</label><input type="text" name="title" class="form-control" value="{{ ritual.title }}" required></div>
-        <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="4">{{ ritual.description or '' }}</textarea></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3">{{ ritual.description or '' }}</textarea></div>
+        <hr class="divider" style="margin:16px 0">
+        {# ── CHANGE: Shared Puja fields — pre-filled from first detail, synced to all on save ── #}
+        <div style="background:#EEF2FF;border:1px solid #C5CAE9;border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:0.82rem;color:#3949AB">
+          ℹ️ <strong>Puja Vidhi &amp; Samagri</strong> are shared across all detail variants.
+          Saving here updates every variant.
+        </div>
+        <div class="form-group">
+          <label class="form-label">Puja Vidhi (Procedure)</label>
+          <textarea name="puja_vidhi" class="form-control" rows="5"
+                    placeholder="Step-by-step procedure...">{% if ritual.details and ritual.details[0].puja_vidhi %}{% if ritual.details[0].puja_vidhi is iterable and ritual.details[0].puja_vidhi is not string %}{{ ritual.details[0].puja_vidhi | join('
+') }}{% else %}{{ ritual.details[0].puja_vidhi }}{% endif %}{% endif %}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Puja Samagri
+            <span style="font-weight:400;color:var(--text-light);font-size:0.8rem">(one item per line as: Item Name, Quantity)</span>
+          </label>
+          <textarea name="puja_samagri" class="form-control" rows="5"
+                    placeholder="Flowers, 1 bunch&#10;Camphor, 2 tablets&#10;Ghee, 250 gm">{% if ritual.details and ritual.details[0].puja_samagri %}{% if ritual.details[0].puja_samagri is iterable and ritual.details[0].puja_samagri is not string %}{% for item in ritual.details[0].puja_samagri %}{{ item.get('item','') if item is mapping else item }}{% if item is mapping and item.get('qty') %}, {{ item.qty }}{% endif %}
+{% endfor %}{% else %}{{ ritual.details[0].puja_samagri }}{% endif %}{% endif %}</textarea>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('editRitualModal')">Cancel</button>
