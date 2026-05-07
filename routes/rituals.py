@@ -243,6 +243,20 @@ def update_ritual(ritual_id):
     ritual.title       = request.form.get('title', ritual.title).strip()
     ritual.description = request.form.get('description', ritual.description).strip()
     ritual.updated_at  = datetime.utcnow()
+    # ── CHANGE: Also update puja_vidhi/samagri (shared fields) across all details.
+    # This allows the Edit Ritual modal to serve as the single place to manage
+    # the ritual title, description AND shared puja information in one save action.
+    raw_vidhi   = request.form.get('puja_vidhi', '').strip()
+    raw_samagri = request.form.get('puja_samagri', '').strip()
+    if raw_vidhi or raw_samagri:
+        puja_vidhi   = _parse_vidhi(raw_vidhi)   if raw_vidhi   else None
+        puja_samagri = _parse_samagri(raw_samagri) if raw_samagri else None
+        for d in ritual.details:
+            if puja_vidhi   is not None:
+                d.puja_vidhi   = puja_vidhi
+            if puja_samagri is not None:
+                d.puja_samagri = puja_samagri
+            d.updated_at = datetime.utcnow()
     db.session.commit()
     flash(f'"{ritual.title}" updated!', 'success')
     return redirect(url_for('rituals.view_ritual', ritual_id=ritual_id))
@@ -256,6 +270,13 @@ def update_ritual(ritual_id):
 def add_detail(ritual_id):
     ritual = Ritual.query.get_or_404(ritual_id)
     detail = _build_detail_from_form(request.form, ritual.id)
+    # ── CHANGE: puja_vidhi and puja_samagri are SHARED across all variants.
+    # Copy them from the first existing detail so they auto-propagate
+    # without the admin needing to re-enter them in the Add Detail modal.
+    if ritual.details:
+        source = ritual.details[0]
+        detail.puja_vidhi   = source.puja_vidhi
+        detail.puja_samagri = source.puja_samagri
     db.session.add(detail)
     db.session.flush()
     _add_packages_from_form(request.form, detail.id)
